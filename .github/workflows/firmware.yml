@@ -53,7 +53,7 @@ jobs:
           target: esp32s3
           path: firmware
           command: >-
-            idf.py -D PROJECT_VER=v0.1.6-web-test build &&
+            idf.py -D PROJECT_VER=v0.1.7-stack-fix build &&
             cd build &&
             esptool.py --chip esp32s3 merge_bin -o rm_handheld_merged.bin @flash_args
 
@@ -63,25 +63,26 @@ jobs:
           grep -E '^(# )?CONFIG_(BT_ENABLED|BT_NIMBLE_ENABLED|ESP_COEX_SW_COEXIST_ENABLE|SW_COEXIST_ENABLE|LOG_DYNAMIC_LEVEL_CONTROL|LOG_TAG_LEVEL_IMPL_)' firmware/sdkconfig || true
           grep -q '^# CONFIG_LOG_DYNAMIC_LEVEL_CONTROL is not set' firmware/sdkconfig
           grep -q '^CONFIG_LOG_TAG_LEVEL_IMPL_NONE=y' firmware/sdkconfig
+          grep -q '^CONFIG_ESP_MAIN_TASK_STACK_SIZE=12288' firmware/sdkconfig
 
       - name: Package fixed Windows flasher
         shell: bash
         run: |
           set -euo pipefail
-          package="dist/RM-Handheld-v0.1.6-windows-flasher"
+          package="dist/RM-Handheld-v0.1.7-windows-flasher"
           mkdir -p "$package/prebuilt"
           cp tools/windows-flasher/flash.bat "$package/"
           cp tools/windows-flasher/flash.ps1 "$package/"
           cp tools/windows-flasher/README.txt "$package/"
-          cp firmware/build/rm_handheld_merged.bin "$package/prebuilt/rm_handheld_v0.1.6_merged.bin"
-          (cd dist && zip -q -r RM-Handheld-v0.1.6-windows-flasher.zip RM-Handheld-v0.1.6-windows-flasher)
-          sha256sum dist/RM-Handheld-v0.1.6-windows-flasher.zip > dist/RM-Handheld-v0.1.6-windows-flasher.zip.sha256
+          cp firmware/build/rm_handheld_merged.bin "$package/prebuilt/rm_handheld_v0.1.7_merged.bin"
+          (cd dist && zip -q -r RM-Handheld-v0.1.7-windows-flasher.zip RM-Handheld-v0.1.7-windows-flasher)
+          sha256sum dist/RM-Handheld-v0.1.7-windows-flasher.zip > dist/RM-Handheld-v0.1.7-windows-flasher.zip.sha256
 
       - name: Package Spacehuhn web-flash image
         shell: bash
         run: |
-          cp firmware/build/rm_handheld_merged.bin dist/RM-Handheld-v0.1.6-web-flash.bin
-          sha256sum dist/RM-Handheld-v0.1.6-web-flash.bin > dist/RM-Handheld-v0.1.6-web-flash.bin.sha256
+          cp firmware/build/rm_handheld_merged.bin dist/RM-Handheld-v0.1.7-web-flash.bin
+          sha256sum dist/RM-Handheld-v0.1.7-web-flash.bin > dist/RM-Handheld-v0.1.7-web-flash.bin.sha256
 
       - uses: actions/upload-artifact@v4
         with:
@@ -99,16 +100,16 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: rm-handheld-v0.1.6-windows-flasher
+          name: rm-handheld-v0.1.7-windows-flasher
           path: |
-            dist/RM-Handheld-v0.1.6-windows-flasher.zip
-            dist/RM-Handheld-v0.1.6-windows-flasher.zip.sha256
+            dist/RM-Handheld-v0.1.7-windows-flasher.zip
+            dist/RM-Handheld-v0.1.7-windows-flasher.zip.sha256
           if-no-files-found: error
 
       - uses: actions/upload-artifact@v4
         with:
-          name: rm-handheld-v0.1.6-web-flash
+          name: rm-handheld-v0.1.7-web-flash
           path: |
-            dist/RM-Handheld-v0.1.6-web-flash.bin
-            dist/RM-Handheld-v0.1.6-web-flash.bin.sha256
+            dist/RM-Handheld-v0.1.7-web-flash.bin
+            dist/RM-Handheld-v0.1.7-web-flash.bin.sha256
           if-no-files-found: error
