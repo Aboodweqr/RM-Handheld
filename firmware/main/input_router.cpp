@@ -20,7 +20,9 @@ DashboardPage detail_for_card(std::uint8_t card) {
         case 2:
         case 3: return DashboardPage::Temperature;
         case 4:
-        case 5: return DashboardPage::Performance;
+        case 5:
+        case 6: return DashboardPage::Performance;
+        case 7: return DashboardPage::Network;
         default: return DashboardPage::Overview;
     }
 }
@@ -91,13 +93,13 @@ RouteResult InputRouter::update(const GamepadState& input, std::uint32_t now_ms)
             if (left && (selected_card_ % 2U) != 0) {
                 --selected_card_;
                 result.action = DashboardAction::SelectionChanged;
-            } else if (right && (selected_card_ % 2U) == 0 && selected_card_ < 5) {
+            } else if (right && (selected_card_ % 2U) == 0 && selected_card_ < 7) {
                 ++selected_card_;
                 result.action = DashboardAction::SelectionChanged;
             } else if (up && selected_card_ >= 2) {
                 selected_card_ = static_cast<std::uint8_t>(selected_card_ - 2);
                 result.action = DashboardAction::SelectionChanged;
-            } else if (down && selected_card_ <= 3) {
+            } else if (down && selected_card_ <= 5) {
                 selected_card_ = static_cast<std::uint8_t>(selected_card_ + 2);
                 result.action = DashboardAction::SelectionChanged;
             } else if (a) {
