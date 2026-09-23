@@ -1,0 +1,13 @@
+.idea/
+.gradle/
+**/build/
+firmware/build/
+sdkconfig
+sdkconfig.old
+*.apk
+*.bin
+*.elf
+*.map
+local.properties
+captures/*.txt
+/tests/host_tests

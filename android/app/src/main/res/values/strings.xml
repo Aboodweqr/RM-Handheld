@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">RM Handheld</string>
+    <string name="service_channel">Handheld connection</string>
+</resources>

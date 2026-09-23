@@ -1,0 +1,22 @@
+idf_component_register(
+    SRCS
+        "main.cpp"
+        "ble_link.c"
+        "dashboard_ui.cpp"
+        "fuel_gauge.cpp"
+        "hid_report_parser.cpp"
+        "input_router.cpp"
+        "telemetry_store.cpp"
+        "usb_gamepad.cpp"
+        "../../protocol/telemetry_protocol.cpp"
+    INCLUDE_DIRS
+        "."
+        "../../protocol"
+    REQUIRES
+        bt
+        driver
+        esp_lcd
+        esp_timer
+        nvs_flash
+        usb
+)
