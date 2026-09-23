@@ -28,19 +28,15 @@ constexpr std::uint32_t kText = 0xF4F8FA;
 constexpr std::uint32_t kMuted = 0x8E9EAB;
 constexpr int kClearRows = 8;
 
-// Keep both buffers unchanged while the SPI DMA queue is using them. A visible
-// startup pattern distinguishes a working LCD link from an LVGL drawing issue.
-DMA_ATTR std::uint16_t green_strip[board::kDisplayWidth * kClearRows];
-DMA_ATTR std::uint16_t magenta_strip[board::kDisplayWidth * kClearRows];
+// Clear every pixel before LVGL starts. The earlier green/magenta diagnostic
+// proved the panel link works, so production builds should boot cleanly.
+DMA_ATTR std::uint16_t black_strip[board::kDisplayWidth * kClearRows] = {};
 
-esp_err_t show_panel_test(esp_lcd_panel_handle_t panel) {
-    std::fill_n(green_strip, board::kDisplayWidth * kClearRows, 0x07E0);
-    std::fill_n(magenta_strip, board::kDisplayWidth * kClearRows, 0xF81F);
+esp_err_t clear_panel(esp_lcd_panel_handle_t panel) {
     for (int y = 0; y < board::kDisplayHeight; y += kClearRows) {
         const int end_y = std::min(y + kClearRows, board::kDisplayHeight);
         const esp_err_t error = esp_lcd_panel_draw_bitmap(
-            panel, 0, y, board::kDisplayWidth, end_y,
-            y < board::kDisplayHeight / 2 ? green_strip : magenta_strip);
+            panel, 0, y, board::kDisplayWidth, end_y, black_strip);
         if (error != ESP_OK) return error;
     }
     return ESP_OK;
@@ -153,10 +149,8 @@ esp_err_t DashboardUi::start() {
     if (error != ESP_OK) return display_error("LCD mirror", error);
     error = esp_lcd_panel_disp_on_off(panel, true);
     if (error != ESP_OK) return display_error("LCD on", error);
-    error = show_panel_test(panel);
-    if (error != ESP_OK) return display_error("LCD color test", error);
-    ESP_LOGI(kTag, "Green/magenta LCD test submitted; look for both colors");
-    vTaskDelay(pdMS_TO_TICKS(800));
+    error = clear_panel(panel);
+    if (error != ESP_OK) return display_error("LCD clear", error);
 
     const lvgl_port_cfg_t lvgl_config = ESP_LVGL_PORT_INIT_CONFIG();
     error = lvgl_port_init(&lvgl_config);
@@ -171,10 +165,12 @@ esp_err_t DashboardUi::start() {
         .hres = board::kDisplayWidth,
         .vres = board::kDisplayHeight,
         .monochrome = false,
+        // Keep esp_lvgl_port's initial rotation identical to the ST7789
+        // rotation above. A mismatch resets the panel to 240x320 portrait.
         .rotation = {
-            .swap_xy = false,
+            .swap_xy = true,
             .mirror_x = false,
-            .mirror_y = false,
+            .mirror_y = true,
         },
         .rounder_cb = nullptr,
         .color_format = LV_COLOR_FORMAT_RGB565,
@@ -239,7 +235,7 @@ void DashboardUi::show_page(DashboardPage page, std::uint8_t selected_card,
     if (!ready()) return;
     const auto old_page = page_;
     page_ = page;
-    selected_card_ = std::min<std::uint8_t>(selected_card, 5);
+    selected_card_ = std::min<std::uint8_t>(selected_card, 7);
     slide_direction_ = static_cast<int>(page_) >= static_cast<int>(old_page) ? 1 : -1;
     lv_label_set_text(page_label_, page_name(page_));
     lv_obj_clean(content_);
@@ -259,29 +255,29 @@ lv_obj_t* DashboardUi::create_card(int x, int y, const char* title,
                                    bool selected, std::size_t index) {
     auto* card = lv_obj_create(content_);
     lv_obj_set_pos(card, x, y);
-    lv_obj_set_size(card, 154, 62);
+    lv_obj_set_size(card, 154, 49);
     lv_obj_set_style_bg_color(card, lv_color_hex(kPanel), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(card, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_set_style_border_color(card,
                                   lv_color_hex(selected ? kAccent : kPanelBorder),
                                   LV_PART_MAIN);
     lv_obj_set_style_border_width(card, selected ? 2 : 1, LV_PART_MAIN);
-    lv_obj_set_style_radius(card, 9, LV_PART_MAIN);
-    lv_obj_set_style_pad_all(card, 7, LV_PART_MAIN);
+    lv_obj_set_style_radius(card, 7, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(card, 3, LV_PART_MAIN);
     lv_obj_clear_flag(card, LV_OBJ_FLAG_SCROLLABLE);
 
     auto* title_label = lv_label_create(card);
     lv_label_set_text(title_label, title);
     lv_obj_set_style_text_font(title_label, &lv_font_montserrat_12, LV_PART_MAIN);
     label_color(title_label, kAccent);
-    lv_obj_align(title_label, LV_ALIGN_TOP_LEFT, 0, -1);
+    lv_obj_align(title_label, LV_ALIGN_TOP_LEFT, 0, -2);
 
     value_labels_[index] = lv_label_create(card);
     lv_label_set_text(value_labels_[index], "--");
-    lv_obj_set_style_text_font(value_labels_[index], &lv_font_montserrat_18,
+    lv_obj_set_style_text_font(value_labels_[index], &lv_font_montserrat_14,
                                LV_PART_MAIN);
     label_color(value_labels_[index], kText);
-    lv_obj_align(value_labels_[index], LV_ALIGN_LEFT_MID, 0, 4);
+    lv_obj_align(value_labels_[index], LV_ALIGN_LEFT_MID, 0, 1);
 
     subtitle_labels_[index] = lv_label_create(card);
     lv_label_set_text(subtitle_labels_[index], "waiting");
@@ -294,12 +290,14 @@ lv_obj_t* DashboardUi::create_card(int x, int y, const char* title,
 
 void DashboardUi::build_overview() {
     static const char* titles[] = {
-        "PHONE BATTERY", "CHARGE POWER", "BATTERY TEMP",
-        "THERMAL", "CPU / RAM", "GPU",
+        "PHONE BATTERY", "CHARGE POWER",
+        "BATTERY TEMP", "CHARGER TEMP",
+        "CPU LOAD", "GPU LOAD",
+        "RAM", "WIFI",
     };
-    for (std::size_t index = 0; index < 6; ++index) {
+    for (std::size_t index = 0; index < 8; ++index) {
         create_card(index % 2 == 0 ? 4 : 162,
-                    static_cast<int>(index / 2) * 67 + 2,
+                    static_cast<int>(index / 2) * 51 + 2,
                     titles[index], index == selected_card_, index);
     }
 }
@@ -362,7 +360,7 @@ void DashboardUi::build_detail() {
 void DashboardUi::refresh(const TelemetryStore& telemetry, bool phone_online,
                           bool ble_connected, bool usb_connected) {
     if (!ready() || !lvgl_port_lock(250)) return;
-    lv_label_set_text_fmt(status_label_, "PHONE %s  USB %s  BLE %s",
+    lv_label_set_text_fmt(status_label_, "P:%s U:%s B:%s",
                           phone_online ? "OK" : "--",
                           usb_connected ? "OK" : "--",
                           ble_connected ? "OK" : "--");
@@ -378,66 +376,119 @@ void DashboardUi::refresh(const TelemetryStore& telemetry, bool phone_online,
 void DashboardUi::update_overview(const TelemetryStore& telemetry,
                                   bool phone_online, bool ble_connected,
                                   bool usb_connected) {
-    (void)ble_connected;
     const auto& core = telemetry.core();
     const auto& perf = telemetry.performance();
+    const auto& network = telemetry.network();
+    const auto& identity = telemetry.identity();
+
     set_percent(value_labels_[0], core.battery_percent);
     lv_label_set_text(subtitle_labels_[0],
                       (core.flags & kCharging) != 0 ? "CHARGING" :
                       (core.flags & kFull) != 0 ? "FULL" : "PHONE");
+
     if ((core.flags & kHasPower) != 0 && core.power_centi_w != kUnknown16) {
         lv_label_set_text_fmt(value_labels_[1], "%u.%02u W",
                               static_cast<unsigned>(core.power_centi_w / 100),
                               static_cast<unsigned>(core.power_centi_w % 100));
-    } else lv_label_set_text(value_labels_[1], "N/A");
-    if ((perf.flags & kHasChargerTemperature) != 0 &&
-        perf.charger_temperature_deci_c != kUnknownSigned16) {
-        const auto temp = perf.charger_temperature_deci_c;
-        lv_label_set_text_fmt(subtitle_labels_[1], "CHARGER %d.%d C", temp / 10,
-                              std::abs(temp % 10));
-    } else if ((core.flags & kHasCurrent) != 0 && core.current_ma != kUnknownSigned16) {
+    } else {
+        lv_label_set_text(value_labels_[1], "N/A");
+    }
+    if ((core.flags & kHasCurrent) != 0 &&
+        core.current_ma != kUnknownSigned16) {
         lv_label_set_text_fmt(subtitle_labels_[1], "%d mA EST",
                               std::abs(static_cast<int>(core.current_ma)));
-    } else lv_label_set_text(subtitle_labels_[1], "CURRENT BLOCKED");
+    } else {
+        lv_label_set_text(subtitle_labels_[1], "CURRENT BLOCKED");
+    }
+
     if ((core.flags & kHasBatteryTemperature) != 0 &&
         core.battery_temperature_deci_c != kUnknownSigned16) {
-        const auto temp = core.battery_temperature_deci_c;
-        lv_label_set_text_fmt(value_labels_[2], "%d.%d C", temp / 10,
-                              std::abs(temp % 10));
-    } else lv_label_set_text(value_labels_[2], "N/A");
+        const auto temperature = core.battery_temperature_deci_c;
+        lv_label_set_text_fmt(value_labels_[2], "%d.%d C", temperature / 10,
+                              std::abs(temperature % 10));
+    } else {
+        lv_label_set_text(value_labels_[2], "N/A");
+    }
     if (core.cycle_count != kUnknown16) {
         lv_label_set_text_fmt(subtitle_labels_[2], "%u CYCLES",
                               static_cast<unsigned>(core.cycle_count));
-    } else lv_label_set_text(subtitle_labels_[2], "CYCLES N/A");
-    lv_label_set_text(value_labels_[3], thermal_name(core.thermal_status));
+    } else {
+        lv_label_set_text(subtitle_labels_[2], "CYCLES N/A");
+    }
+
+    if ((perf.flags & kHasChargerTemperature) != 0 &&
+        perf.charger_temperature_deci_c != kUnknownSigned16) {
+        const auto temperature = perf.charger_temperature_deci_c;
+        lv_label_set_text_fmt(value_labels_[3], "%d.%d C", temperature / 10,
+                              std::abs(temperature % 10));
+    } else {
+        lv_label_set_text(value_labels_[3], "N/A");
+    }
     if (core.thermal_headroom_percent != kUnknown8) {
-        lv_label_set_text_fmt(subtitle_labels_[3], "%u%% HEADROOM",
+        lv_label_set_text_fmt(subtitle_labels_[3], "%s %u%%",
+                              thermal_name(core.thermal_status),
                               static_cast<unsigned>(core.thermal_headroom_percent));
-    } else lv_label_set_text(subtitle_labels_[3], "ANDROID STATUS");
+    } else {
+        lv_label_set_text(subtitle_labels_[3], thermal_name(core.thermal_status));
+    }
+
     if ((perf.flags & kHasCpuUsage) != 0 &&
         perf.cpu_usage_percent != kUnknown8) {
-        lv_label_set_text_fmt(value_labels_[4], "%u%% CPU",
+        lv_label_set_text_fmt(value_labels_[4], "%u%%",
                               static_cast<unsigned>(perf.cpu_usage_percent));
-    } else lv_label_set_text(value_labels_[4], "CPU N/A");
-    if (perf.cpu_mhz != kUnknown16 && perf.ram_usage_percent != kUnknown8) {
-        lv_label_set_text_fmt(subtitle_labels_[4], "%u MHz / %u%% RAM",
-                              static_cast<unsigned>(perf.cpu_mhz),
-                              static_cast<unsigned>(perf.ram_usage_percent));
-    } else if (perf.ram_usage_percent != kUnknown8) {
-        lv_label_set_text_fmt(subtitle_labels_[4], "%u%% RAM",
-                              static_cast<unsigned>(perf.ram_usage_percent));
-    } else lv_label_set_text(subtitle_labels_[4], "RAM N/A");
+    } else {
+        lv_label_set_text(value_labels_[4], "N/A");
+    }
+    if ((perf.flags & kHasCpuClock) != 0 && perf.cpu_mhz != kUnknown16) {
+        lv_label_set_text_fmt(subtitle_labels_[4], "%u MHz",
+                              static_cast<unsigned>(perf.cpu_mhz));
+    } else {
+        lv_label_set_text(subtitle_labels_[4], "CLOCK BLOCKED");
+    }
+
     if ((perf.flags & kHasGpuUsage) != 0 &&
         perf.gpu_usage_percent != kUnknown8) {
-        lv_label_set_text_fmt(value_labels_[5], "%u%% GPU",
+        lv_label_set_text_fmt(value_labels_[5], "%u%%",
                               static_cast<unsigned>(perf.gpu_usage_percent));
-    } else lv_label_set_text(value_labels_[5], "GPU N/A");
-    if (perf.gpu_mhz != kUnknown16) {
+    } else {
+        lv_label_set_text(value_labels_[5], "N/A");
+    }
+    if ((perf.flags & kHasGpuClock) != 0 && perf.gpu_mhz != kUnknown16) {
         lv_label_set_text_fmt(subtitle_labels_[5], "%u MHz",
                               static_cast<unsigned>(perf.gpu_mhz));
-    } else lv_label_set_text(subtitle_labels_[5], "KERNEL BLOCKED");
-    if (!phone_online) lv_label_set_text(subtitle_labels_[0], "OPEN APK");
-    if (!usb_connected) lv_label_set_text(subtitle_labels_[5], "USB WAITING");
+    } else {
+        lv_label_set_text(subtitle_labels_[5], "CLOCK BLOCKED");
+    }
+
+    set_percent(value_labels_[6], perf.ram_usage_percent);
+    lv_label_set_text(subtitle_labels_[6], "ANDROID MEMORY");
+
+    if ((network.flags & 1U) != 0) {
+        if ((identity.flags & 1U) != 0) {
+            lv_label_set_text_fmt(value_labels_[7], "%.13s",
+                                  identity.wifi_name.data());
+        } else {
+            lv_label_set_text(value_labels_[7], "CONNECTED");
+        }
+        if (network.wifi_rssi_dbm != INT8_MIN) {
+            lv_label_set_text_fmt(subtitle_labels_[7], "%d dBm B%s U%s",
+                                  network.wifi_rssi_dbm,
+                                  ble_connected ? "+" : "-",
+                                  usb_connected ? "+" : "-");
+        } else {
+            lv_label_set_text_fmt(subtitle_labels_[7], "B%s U%s PHONE",
+                                  ble_connected ? "+" : "-",
+                                  usb_connected ? "+" : "-");
+        }
+    } else {
+        lv_label_set_text(value_labels_[7], "N/A");
+        lv_label_set_text(subtitle_labels_[7],
+                          phone_online ? "WIFI PERMISSION" : "OPEN APK");
+    }
+
+    if (!phone_online) {
+        lv_label_set_text(subtitle_labels_[0], "OPEN APK");
+    }
 }
 
 void DashboardUi::update_detail(const TelemetryStore& telemetry,
