@@ -178,7 +178,12 @@ esp_err_t DashboardUi::start() {
             .buff_dma = true,
             .buff_spiram = false,
             .sw_rotate = false,
-            .swap_bytes = false,
+            // LVGL stores RGB565 in the ESP32's native little-endian order,
+            // while this ST7789 is configured to receive big-endian RGB565.
+            // Swap each pixel's bytes before DMA transfer. Without this,
+            // dark gray becomes brown/pink and antialiased text gets
+            // cyan/magenta/green fringes.
+            .swap_bytes = true,
             .full_refresh = false,
             .direct_mode = false,
         },
