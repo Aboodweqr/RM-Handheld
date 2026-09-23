@@ -17,6 +17,7 @@ CONFIG_LOG_DEFAULT_LEVEL_INFO=y
 # ESP-IDF 5.5.5 can hit the dynamic per-tag log mutex while the ESP32-S3 BLE
 # controller is being initialized.  Fixed compile-time log levels avoid that
 # controller-startup assertion without hiding INFO/WARN/ERROR serial output.
+CONFIG_LOG_TAG_LEVEL_IMPL_NONE=y
 CONFIG_LOG_DYNAMIC_LEVEL_CONTROL=n
 CONFIG_COMPILER_CXX_EXCEPTIONS=n
 CONFIG_LV_FONT_MONTSERRAT_12=y
