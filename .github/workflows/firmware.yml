@@ -60,9 +60,9 @@ jobs:
       - name: Verify crash-fix configuration
         shell: bash
         run: |
-          grep -E '^CONFIG_(BT_ENABLED|BT_NIMBLE_ENABLED|ESP_COEX_SW_COEXIST_ENABLE|SW_COEXIST_ENABLE|LOG_DYNAMIC_LEVEL_CONTROL|LOG_TAG_LEVEL_IMPL_)' firmware/sdkconfig || true
+          grep -E '^(# )?CONFIG_(BT_ENABLED|BT_NIMBLE_ENABLED|ESP_COEX_SW_COEXIST_ENABLE|SW_COEXIST_ENABLE|LOG_DYNAMIC_LEVEL_CONTROL|LOG_TAG_LEVEL_IMPL_)' firmware/sdkconfig || true
           grep -q '^# CONFIG_LOG_DYNAMIC_LEVEL_CONTROL is not set' firmware/sdkconfig
-          grep -q '^# CONFIG_ESP_COEX_SW_COEXIST_ENABLE is not set' firmware/sdkconfig
+          grep -q '^CONFIG_LOG_TAG_LEVEL_IMPL_NONE=y' firmware/sdkconfig
 
       - name: Package fixed Windows flasher
         shell: bash
