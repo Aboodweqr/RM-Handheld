@@ -52,17 +52,22 @@ jobs:
           esp_idf_version: v5.5.5
           target: esp32s3
           path: firmware
-          command: idf.py -D PROJECT_VER=d11c9f2 build && cd build && esptool.py --chip esp32s3 merge_bin -o rm_handheld_merged.bin @flash_args
+          command: >-
+            idf.py -D PROJECT_VER=d11c9f2 build &&
+            cd build &&
+            esptool.py --chip esp32s3 merge_bin -o rm_handheld_merged.bin @flash_args &&
+            echo "BLE_CRASH_BACKTRACE_BEGIN" &&
+            xtensa-esp32s3-elf-addr2line -pfiaC -e rm_handheld.elf
+            0x403824fd 0x403824c5 0x4038ade1 0x40382fce
+            0x4038ab88 0x420a7013 0x4038ac2a 0x42003975
+            0x4038ab25 0x4201bc11 0x4201bf4d 0x42019599
+            0x42009b92 0x42009489 0x420a60df 0x40383239 &&
+            echo "BLE_CRASH_BACKTRACE_END"
 
-      - name: Decode captured BLE crash backtrace
+      - name: Show resolved Bluetooth configuration
         shell: bash
         run: |
-          xtensa-esp32s3-elf-addr2line -pfiaC \
-            -e firmware/build/rm_handheld.elf \
-            0x403824fd 0x403824c5 0x4038ade1 0x40382fce \
-            0x4038ab88 0x420a7013 0x4038ac2a 0x42003975 \
-            0x4038ab25 0x4201bc11 0x4201bf4d 0x42019599 \
-            0x42009b92 0x42009489 0x420a60df 0x40383239
+          grep -E '^CONFIG_(BT|BTDM|NIMBLE|FREERTOS_HZ)' firmware/sdkconfig || true
 
       - name: Package fixed Windows flasher
         shell: bash
