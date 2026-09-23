@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="480" viewBox="0 0 660 240">
+  <defs>
+    <linearGradient id="glow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#52e0b4" stop-opacity=".2"/>
+      <stop offset="1" stop-color="#ffb454" stop-opacity=".03"/>
+    </linearGradient>
+    <style>
+      .screen{fill:#070b0f}.panel{fill:#0d141a;stroke:#25353f;stroke-width:1}.selected{stroke:#52e0b4;stroke-width:2}
+      .brand{font:700 9px sans-serif;fill:#52e0b4;letter-spacing:1px}.head{font:700 6px sans-serif;fill:#f4f8fa;letter-spacing:.8px}
+      .status{font:500 5px sans-serif;fill:#8e9eab}.title{font:700 5px sans-serif;fill:#52e0b4;letter-spacing:.45px}
+      .value{font:700 12px sans-serif;fill:#f4f8fa}.small{font:500 5px sans-serif;fill:#8e9eab}
+      .big{font:700 17px sans-serif;fill:#f4f8fa}.grid{stroke:#25353f;stroke-width:.5;opacity:.7;fill:none}
+    </style>
+  </defs>
+  <g>
+    <rect class="screen" width="320" height="240" rx="7"/>
+    <rect width="320" height="240" rx="7" fill="url(#glow)"/>
+    <text class="brand" x="8" y="18">RM</text><text class="head" x="42" y="16">OVERVIEW</text>
+    <text class="status" text-anchor="end" x="312" y="16">PHONE OK   USB OK   BLE OK</text>
+    <g transform="translate(4 34)">
+      <rect class="panel selected" width="154" height="62" rx="8"/><text class="title" x="8" y="12">PHONE BATTERY</text>
+      <text class="value" x="8" y="37">96%</text><text class="small" x="8" y="54">CHARGING</text>
+    </g>
+    <g transform="translate(162 34)">
+      <rect class="panel" width="154" height="62" rx="8"/><text class="title" x="8" y="12">CHARGE POWER</text>
+      <text class="value" x="8" y="37">7.42 W</text><text class="small" x="8" y="54">1684 mA EST</text>
+    </g>
+    <g transform="translate(4 101)">
+      <rect class="panel" width="154" height="62" rx="8"/><text class="title" x="8" y="12">BATTERY TEMP</text>
+      <text class="value" x="8" y="37">38.4 C</text><text class="small" x="8" y="54">98 CYCLES</text>
+    </g>
+    <g transform="translate(162 101)">
+      <rect class="panel" width="154" height="62" rx="8"/><text class="title" x="8" y="12">THERMAL</text>
+      <text class="value" x="8" y="37">NOMINAL</text><text class="small" x="8" y="54">61% HEADROOM</text>
+    </g>
+    <g transform="translate(4 168)">
+      <rect class="panel" width="154" height="62" rx="8"/><text class="title" x="8" y="12">CPU / RAM</text>
+      <text class="value" x="8" y="37">42% CPU</text><text class="small" x="8" y="54">2980 MHz / 54% RAM</text>
+    </g>
+    <g transform="translate(162 168)">
+      <rect class="panel" width="154" height="62" rx="8"/><text class="title" x="8" y="12">GPU</text>
+      <text class="value" x="8" y="37">GPU N/A</text><text class="small" x="8" y="54">KERNEL BLOCKED</text>
+    </g>
+  </g>
+  <g transform="translate(340)">
+    <rect class="screen" width="320" height="240" rx="7"/>
+    <rect width="320" height="240" rx="7" fill="url(#glow)"/>
+    <text class="brand" x="8" y="18">RM</text><text class="head" x="42" y="16">BATTERY + POWER</text>
+    <text class="status" text-anchor="end" x="312" y="16">PHONE OK   USB OK   BLE OK</text>
+    <text class="big" x="10" y="60">96%  |  7.42 W</text>
+    <text class="small" x="11" y="78">GREEN: battery %   AMBER: power / 20 W</text>
+    <g transform="translate(8 96)">
+      <rect class="panel" width="304" height="132" rx="8"/>
+      <path class="grid" d="M0 33H304M0 66H304M0 99H304M51 0V132M101 0V132M152 0V132M203 0V132M253 0V132"/>
+      <polyline fill="none" stroke="#52e0b4" stroke-width="2" points="3,23 30,24 58,24 86,25 114,25 142,26 170,26 198,27 226,28 254,28 282,29 301,29"/>
+      <polyline fill="none" stroke="#ffb454" stroke-width="2" points="3,98 30,83 58,92 86,62 114,76 142,45 170,58 198,36 226,51 254,68 282,56 301,73"/>
+    </g>
+  </g>
+</svg>
