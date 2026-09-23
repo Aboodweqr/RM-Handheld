@@ -5,11 +5,13 @@ on:
     paths:
       - "firmware/**"
       - "protocol/**"
+      - "tools/windows-flasher/**"
       - ".github/workflows/firmware.yml"
   pull_request:
     paths:
       - "firmware/**"
       - "protocol/**"
+      - "tools/windows-flasher/**"
       - ".github/workflows/firmware.yml"
   workflow_dispatch:
 
@@ -17,6 +19,26 @@ permissions:
   contents: read
 
 jobs:
+  windows-flasher-script:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate PowerShell syntax
+        shell: powershell
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path 'tools/windows-flasher/flash.ps1'),
+            [ref]$tokens,
+            [ref]$errors
+          ) | Out-Null
+          if ($errors.Count -gt 0) {
+            $errors | Format-List | Out-String | Write-Error
+            exit 1
+          }
+
   esp32s3:
     runs-on: ubuntu-latest
     steps:
@@ -32,6 +54,19 @@ jobs:
           path: firmware
           command: idf.py build && cd build && esptool.py --chip esp32s3 merge_bin -o rm_handheld_merged.bin @flash_args
 
+      - name: Package fixed Windows flasher
+        shell: bash
+        run: |
+          set -euo pipefail
+          package="dist/RM-Handheld-v0.1.5-fixed-windows-flasher"
+          mkdir -p "$package/prebuilt"
+          cp tools/windows-flasher/flash.bat "$package/"
+          cp tools/windows-flasher/flash.ps1 "$package/"
+          cp tools/windows-flasher/README.txt "$package/"
+          cp firmware/build/rm_handheld_merged.bin "$package/prebuilt/rm_handheld_v0.1.5_merged.bin"
+          (cd dist && zip -q -r RM-Handheld-v0.1.5-fixed-windows-flasher.zip RM-Handheld-v0.1.5-fixed-windows-flasher)
+          sha256sum dist/RM-Handheld-v0.1.5-fixed-windows-flasher.zip > dist/RM-Handheld-v0.1.5-fixed-windows-flasher.zip.sha256
+
       - uses: actions/upload-artifact@v4
         with:
           name: rm-handheld-firmware-binaries
@@ -41,4 +76,12 @@ jobs:
             firmware/build/bootloader/bootloader.bin
             firmware/build/partition_table/partition-table.bin
             firmware/build/flash_args
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rm-handheld-v0.1.5-fixed-windows-flasher
+          path: |
+            dist/RM-Handheld-v0.1.5-fixed-windows-flasher.zip
+            dist/RM-Handheld-v0.1.5-fixed-windows-flasher.zip.sha256
           if-no-files-found: error
