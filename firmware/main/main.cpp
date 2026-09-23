@@ -69,18 +69,24 @@ extern "C" void app_main(void) {
     g_state_lock = xSemaphoreCreateMutex();
     ESP_ERROR_CHECK(g_state_lock == nullptr ? ESP_ERR_NO_MEM : ESP_OK);
 
-    // BLE must not depend on the display.  A disconnected or miswired TFT can
-    // now fail without preventing the phone from discovering RM Handheld.
-    error = rmh_ble_start(receive_telemetry, nullptr);
-    if (error != ESP_OK) {
-        ESP_LOGE(kTag, "BLE did not start: %s", esp_err_to_name(error));
-    }
-
+    // Bring up the display first so hardware tests always have visible proof
+    // that the application reached app_main, even while BLE is being debugged.
+    // A disconnected/miswired TFT returns an error and does not block BLE.
     rmh::DashboardUi ui;
     error = ui.start();
     if (error != ESP_OK) {
         ESP_LOGE(kTag, "Display did not start: %s; BLE/USB will continue",
                  esp_err_to_name(error));
+    } else {
+        // Give LVGL time to send the first complete dashboard frame before the
+        // radio controller is initialized.
+        vTaskDelay(pdMS_TO_TICKS(250));
+    }
+
+    ESP_LOGI(kTag, "Starting BLE");
+    error = rmh_ble_start(receive_telemetry, nullptr);
+    if (error != ESP_OK) {
+        ESP_LOGE(kTag, "BLE did not start: %s", esp_err_to_name(error));
     }
 
     rmh::UsbGamepad usb_gamepad;
