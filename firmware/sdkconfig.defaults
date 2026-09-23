@@ -6,13 +6,18 @@ CONFIG_BT_NIMBLE_MAX_CONNECTIONS=1
 CONFIG_BT_NIMBLE_NVS_PERSIST=y
 CONFIG_BT_NIMBLE_SM_LEGACY=n
 CONFIG_BT_NIMBLE_SM_SC=y
+# This firmware never starts Wi-Fi.  Keeping software Wi-Fi/BLE coexistence
+# enabled only adds controller setup that is not needed on this handheld.
+CONFIG_ESP_COEX_SW_COEXIST_ENABLE=n
 CONFIG_FREERTOS_HZ=1000
 CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
 CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
 CONFIG_LOG_DEFAULT_LEVEL_INFO=y
-CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
-CONFIG_ESP_CONSOLE_SECONDARY_NONE=y
+# ESP-IDF 5.5.5 can hit the dynamic per-tag log mutex while the ESP32-S3 BLE
+# controller is being initialized.  Fixed compile-time log levels avoid that
+# controller-startup assertion without hiding INFO/WARN/ERROR serial output.
+CONFIG_LOG_DYNAMIC_LEVEL_CONTROL=n
 CONFIG_COMPILER_CXX_EXCEPTIONS=n
 CONFIG_LV_FONT_MONTSERRAT_12=y
 CONFIG_LV_FONT_MONTSERRAT_14=y
