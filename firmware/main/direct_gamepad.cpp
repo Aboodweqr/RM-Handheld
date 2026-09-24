@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdio>
 #include <cstdlib>
 #include <utility>
 
@@ -167,8 +168,7 @@ esp_err_t DirectGamepad::begin() {
         trigger_peak_[index] = kInitialTriggerSpan;
         if (center_[index] < 100 || center_[index] > kAdcMaximum - 100 ||
             maximum[index] - minimum[index] > 250) {
-            analog_valid_[index] = false;
-            ESP_LOGW(kTag, "Analog input %u looks disconnected; sending neutral",
+            ESP_LOGW(kTag, "Analog input %u looks noisy/extreme; scan remains enabled",
                      static_cast<unsigned>(index));
         }
     }
@@ -176,6 +176,9 @@ esp_err_t DirectGamepad::begin() {
     ready_ = true;
     ESP_LOGI(kTag,
              "Direct controls ready: Menu=GPIO43/TX Home=GPIO48; release controls at boot");
+    std::printf("RMH_SCAN READY - press one physical control at a time\n");
+    std::printf("RMH_SCAN DIGITAL lines show the real GPIO, not the guessed button name\n");
+    std::fflush(stdout);
     return ESP_OK;
 }
 
@@ -208,8 +211,12 @@ int DirectGamepad::read_raw(AnalogInput input) const {
 
 std::int16_t DirectGamepad::read_stick(AnalogInput input, bool invert) {
     const auto index = index_of(input);
-    if (!analog_valid_[index]) return 0;
+    if (!analog_valid_[index]) {
+        latest_raw_[index] = -1;
+        return 0;
+    }
     const int raw = read_raw(input);
+    latest_raw_[index] = raw;
     if (raw < 0) return 0;
     filtered_[index] = (filtered_[index] * 3 + raw) / 4;
     int delta = filtered_[index] - center_[index];
@@ -223,8 +230,12 @@ std::int16_t DirectGamepad::read_stick(AnalogInput input, bool invert) {
 
 std::uint16_t DirectGamepad::read_trigger(AnalogInput input) {
     const auto index = index_of(input);
-    if (!analog_valid_[index]) return 0;
+    if (!analog_valid_[index]) {
+        latest_raw_[index] = -1;
+        return 0;
+    }
     const int raw = read_raw(input);
+    latest_raw_[index] = raw;
     if (raw < 0) return 0;
     filtered_[index] = (filtered_[index] * 3 + raw) / 4;
     int delta = std::abs(filtered_[index] - center_[index]);
@@ -235,9 +246,44 @@ std::uint16_t DirectGamepad::read_trigger(AnalogInput input) {
         std::clamp(delta * 1023 / trigger_peak_[index], 0, 1023));
 }
 
+void DirectGamepad::log_digital_changes() {
+    bool wrote = false;
+    for (std::size_t index = 0; index < kDigitalPins.size(); ++index) {
+        const bool down = pressed(kDigitalPins[index]);
+        if (!digital_snapshot_ready_ || down != last_digital_[index]) {
+            std::printf("RMH_GPIO GPIO%d %s\n",
+                        static_cast<int>(kDigitalPins[index]),
+                        down ? "PRESSED" : "RELEASED");
+            wrote = true;
+        }
+        last_digital_[index] = down;
+    }
+    digital_snapshot_ready_ = true;
+    if (wrote) std::fflush(stdout);
+}
+
+void DirectGamepad::log_analog_changes() {
+    // Called every 200 ms. Print a single compact line only if an ADC moved
+    // enough to be useful for discovering stick/trigger wiring.
+    bool changed = !analog_snapshot_ready_;
+    for (std::size_t index = 0; index < kAnalogCount; ++index) {
+        if (std::abs(latest_raw_[index] - last_logged_raw_[index]) >= 100) {
+            changed = true;
+        }
+    }
+    if (!changed) return;
+    std::printf("RMH_ADC GPIO1=%d GPIO14=%d GPIO15=%d GPIO16=%d GPIO17=%d GPIO18=%d\n",
+                latest_raw_[0], latest_raw_[1], latest_raw_[2],
+                latest_raw_[3], latest_raw_[4], latest_raw_[5]);
+    last_logged_raw_ = latest_raw_;
+    analog_snapshot_ready_ = true;
+    std::fflush(stdout);
+}
+
 GamepadState DirectGamepad::read() {
     GamepadState state;
     if (!ready_) return state;
+    log_digital_changes();
     for (const auto& binding : kButtons) {
         state.set(binding.button, pressed(binding.pin));
     }
@@ -248,6 +294,7 @@ GamepadState DirectGamepad::read() {
     state.right_y = read_stick(AnalogInput::RightY, true);
     state.left_trigger = read_trigger(AnalogInput::LeftTrigger);
     state.right_trigger = read_trigger(AnalogInput::RightTrigger);
+    if ((samples_ % 10U) == 0U) log_analog_changes();
     ++samples_;
     return state;
 }
