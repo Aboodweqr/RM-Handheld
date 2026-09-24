@@ -679,9 +679,7 @@ void DashboardUi::update_detail(const TelemetryStore& telemetry,
             lv_label_set_text_fmt(detail_value_, "PAD %s  |  BLE %s",
                                   usb_connected ? "READY" : "WAIT",
                                   ble_connected ? "READY" : "WAIT");
-            lv_label_set_text_fmt(detail_note_, "GPIO WIRED  INPUTS %3$lu",
-                                  static_cast<unsigned>(link.usb_vendor_id),
-                                  static_cast<unsigned>(link.usb_product_id),
+            lv_label_set_text_fmt(detail_note_, "GPIO WIRED  INPUTS %lu",
                                   static_cast<unsigned long>(link.reports_received));
             break;
         case DashboardPage::Animation:
