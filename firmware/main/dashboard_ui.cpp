@@ -223,7 +223,7 @@ void DashboardUi::build_shell() {
     lv_obj_set_pos(page_label_, 42, 9);
 
     status_label_ = lv_label_create(screen);
-    lv_label_set_text(status_label_, "PHONE --  USB --  BLE --");
+    lv_label_set_text(status_label_, "PHONE --  PAD --  BLE --");
     lv_obj_set_style_text_font(status_label_, &lv_font_montserrat_12, LV_PART_MAIN);
     label_color(status_label_, kMuted);
     lv_obj_align(status_label_, LV_ALIGN_TOP_RIGHT, -8, 9);
@@ -365,7 +365,7 @@ void DashboardUi::build_detail() {
 void DashboardUi::refresh(const TelemetryStore& telemetry, bool phone_online,
                           bool ble_connected, bool usb_connected) {
     if (!ready() || !lvgl_port_lock(250)) return;
-    lv_label_set_text_fmt(status_label_, "P:%s U:%s B:%s",
+    lv_label_set_text_fmt(status_label_, "P:%s C:%s B:%s",
                           phone_online ? "OK" : "--",
                           usb_connected ? "OK" : "--",
                           ble_connected ? "OK" : "--");
@@ -476,12 +476,12 @@ void DashboardUi::update_overview(const TelemetryStore& telemetry,
             lv_label_set_text(value_labels_[7], "CONNECTED");
         }
         if (network.wifi_rssi_dbm != INT8_MIN) {
-            lv_label_set_text_fmt(subtitle_labels_[7], "%d dBm B%s U%s",
+            lv_label_set_text_fmt(subtitle_labels_[7], "%d dBm B%s C%s",
                                   network.wifi_rssi_dbm,
                                   ble_connected ? "+" : "-",
                                   usb_connected ? "+" : "-");
         } else {
-            lv_label_set_text_fmt(subtitle_labels_[7], "B%s U%s PHONE",
+            lv_label_set_text_fmt(subtitle_labels_[7], "B%s C%s PHONE",
                                   ble_connected ? "+" : "-",
                                   usb_connected ? "+" : "-");
         }
@@ -676,10 +676,10 @@ void DashboardUi::update_detail(const TelemetryStore& telemetry,
             }
             break;
         case DashboardPage::Controller:
-            lv_label_set_text_fmt(detail_value_, "USB %s  |  BLE %s",
+            lv_label_set_text_fmt(detail_value_, "PAD %s  |  BLE %s",
                                   usb_connected ? "READY" : "WAIT",
                                   ble_connected ? "READY" : "WAIT");
-            lv_label_set_text_fmt(detail_note_, "VID %04X  PID %04X  REPORTS %lu",
+            lv_label_set_text_fmt(detail_note_, "GPIO WIRED  INPUTS %3$lu",
                                   static_cast<unsigned>(link.usb_vendor_id),
                                   static_cast<unsigned>(link.usb_product_id),
                                   static_cast<unsigned long>(link.reports_received));
