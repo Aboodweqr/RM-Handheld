@@ -3,11 +3,10 @@ idf_component_register(
         "main.cpp"
         "ble_link.c"
         "dashboard_ui.cpp"
+        "direct_gamepad.cpp"
         "fuel_gauge.cpp"
-        "hid_report_parser.cpp"
         "input_router.cpp"
         "telemetry_store.cpp"
-        "usb_gamepad.cpp"
         "../../protocol/telemetry_protocol.cpp"
     INCLUDE_DIRS
         "."
@@ -15,8 +14,8 @@ idf_component_register(
     REQUIRES
         bt
         driver
+        esp_adc
         esp_lcd
         esp_timer
         nvs_flash
-        usb
 )
