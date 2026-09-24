@@ -2,6 +2,7 @@
 
 #include "ble_link.h"
 #include "dashboard_ui.hpp"
+#include "direct_gamepad.hpp"
 #include "esp_err.h"
 #include "esp_log.h"
 #include "esp_lvgl_port.h"
@@ -13,13 +14,11 @@
 #include "input_router.hpp"
 #include "nvs_flash.h"
 #include "telemetry_store.hpp"
-#include "usb_gamepad.hpp"
 
 namespace {
 
 constexpr char kTag[] = "rm_handheld";
 rmh::TelemetryStore g_telemetry;
-rmh::GamepadState g_usb_state;
 SemaphoreHandle_t g_state_lock = nullptr;
 
 std::uint32_t millis() {
@@ -33,13 +32,6 @@ void receive_telemetry(const std::uint8_t* data, std::size_t length,
     const bool valid = g_telemetry.ingest(data, length, millis());
     xSemaphoreGive(g_state_lock);
     if (!valid) ESP_LOGW(kTag, "Rejected telemetry packet (length or CRC)");
-}
-
-void receive_gamepad(const rmh::GamepadState& state, void* context) {
-    (void)context;
-    if (xSemaphoreTake(g_state_lock, pdMS_TO_TICKS(25)) != pdTRUE) return;
-    g_usb_state = state;
-    xSemaphoreGive(g_state_lock);
 }
 
 rmh_ble_gamepad_report_t make_ble_report(const rmh::GamepadState& state) {
@@ -75,7 +67,7 @@ extern "C" void app_main(void) {
     rmh::DashboardUi ui;
     error = ui.start();
     if (error != ESP_OK) {
-        ESP_LOGE(kTag, "Display did not start: %s; BLE/USB will continue",
+        ESP_LOGE(kTag, "Display did not start: %s; BLE/controls will continue",
                  esp_err_to_name(error));
     } else {
         // Give LVGL time to send the first complete dashboard frame before the
@@ -83,16 +75,19 @@ extern "C" void app_main(void) {
         vTaskDelay(pdMS_TO_TICKS(250));
     }
 
+    // Read the hard-wired controller before starting BLE. Sticks and triggers
+    // are calibrated at rest during this short startup step.
+    rmh::DirectGamepad gamepad;
+    error = gamepad.begin();
+    if (error != ESP_OK) {
+        ESP_LOGE(kTag, "Direct controls did not start: %s",
+                 esp_err_to_name(error));
+    }
+
     ESP_LOGI(kTag, "Starting BLE");
     error = rmh_ble_start(receive_telemetry, nullptr);
     if (error != ESP_OK) {
         ESP_LOGE(kTag, "BLE did not start: %s", esp_err_to_name(error));
-    }
-
-    rmh::UsbGamepad usb_gamepad;
-    error = usb_gamepad.start(receive_gamepad, nullptr);
-    if (error != ESP_OK) {
-        ESP_LOGE(kTag, "USB host did not start: %s", esp_err_to_name(error));
     }
 
     rmh::FuelGauge fuel_gauge;
@@ -103,11 +98,7 @@ extern "C" void app_main(void) {
     ESP_LOGI(kTag, "Ready. Open the RM Handheld APK and pair RM Handheld.");
     for (;;) {
         const auto now = millis();
-        rmh::GamepadState input;
-        if (xSemaphoreTake(g_state_lock, pdMS_TO_TICKS(10)) == pdTRUE) {
-            input = g_usb_state;
-            xSemaphoreGive(g_state_lock);
-        }
+        const rmh::GamepadState input = gamepad.read();
 
         const auto route = router.update(input, now);
         const auto ble_report = make_ble_report(route.forwarded);
@@ -126,19 +117,19 @@ extern "C" void app_main(void) {
             link.handheld_battery_percent = fuel_gauge.available()
                                                     ? fuel_gauge.percent()
                                                     : rmh::kUnknown8;
-            link.flags = (usb_gamepad.connected() ? 1U : 0U) |
+            link.flags = (gamepad.ready() ? 1U : 0U) |
                          (rmh_ble_connected() ? 2U : 0U) |
                          (route.dashboard_active ? 4U : 0U) |
                          (fuel_gauge.available() ? 8U : 0U);
-            link.usb_vendor_id = usb_gamepad.vendor_id();
-            link.usb_product_id = usb_gamepad.product_id();
-            link.reports_received = usb_gamepad.reports_received();
+            link.usb_vendor_id = 0;
+            link.usb_product_id = 0;
+            link.reports_received = gamepad.reports_received();
 
             if (xSemaphoreTake(g_state_lock, pdMS_TO_TICKS(50)) == pdTRUE) {
                 g_telemetry.update_link(link, now);
                 const bool phone_online = g_telemetry.phone_online(now);
                 ui.refresh(g_telemetry, phone_online, rmh_ble_connected(),
-                           usb_gamepad.connected());
+                           gamepad.ready());
                 xSemaphoreGive(g_state_lock);
             }
         }
