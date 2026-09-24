@@ -15,6 +15,10 @@ on:
       - ".github/workflows/firmware.yml"
   workflow_dispatch:
 
+concurrency:
+  group: firmware-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -53,7 +57,7 @@ jobs:
           target: esp32s3
           path: firmware
           command: >-
-            idf.py -D PROJECT_VER=v0.1.9-crisp-controller build &&
+            idf.py -D PROJECT_VER=v0.2.0-direct-gpio build &&
             cd build &&
             esptool.py --chip esp32s3 merge_bin -o rm_handheld_merged.bin @flash_args
 
@@ -67,25 +71,29 @@ jobs:
           grep -q '\.swap_xy = true' firmware/main/dashboard_ui.cpp
           grep -q 'index < 8' firmware/main/dashboard_ui.cpp
           grep -q '\.swap_bytes = true' firmware/main/dashboard_ui.cpp
+          grep -q 'direct_gamepad.cpp' firmware/main/CMakeLists.txt
+          grep -q 'kButtonMenu = GPIO_NUM_43' firmware/main/board_config.hpp
+          grep -q 'kButtonHome = GPIO_NUM_48' firmware/main/board_config.hpp
+          ! grep -q '"usb_gamepad.cpp"' firmware/main/CMakeLists.txt
 
       - name: Package fixed Windows flasher
         shell: bash
         run: |
           set -euo pipefail
-          package="dist/RM-Handheld-v0.1.9-windows-flasher"
+          package="dist/RM-Handheld-v0.2.0-windows-flasher"
           mkdir -p "$package/prebuilt"
           cp tools/windows-flasher/flash.bat "$package/"
           cp tools/windows-flasher/flash.ps1 "$package/"
           cp tools/windows-flasher/README.txt "$package/"
-          cp firmware/build/rm_handheld_merged.bin "$package/prebuilt/rm_handheld_v0.1.9_merged.bin"
-          (cd dist && zip -q -r RM-Handheld-v0.1.9-windows-flasher.zip RM-Handheld-v0.1.9-windows-flasher)
-          sha256sum dist/RM-Handheld-v0.1.9-windows-flasher.zip > dist/RM-Handheld-v0.1.9-windows-flasher.zip.sha256
+          cp firmware/build/rm_handheld_merged.bin "$package/prebuilt/rm_handheld_v0.2.0_merged.bin"
+          (cd dist && zip -q -r RM-Handheld-v0.2.0-windows-flasher.zip RM-Handheld-v0.2.0-windows-flasher)
+          sha256sum dist/RM-Handheld-v0.2.0-windows-flasher.zip > dist/RM-Handheld-v0.2.0-windows-flasher.zip.sha256
 
       - name: Package Spacehuhn web-flash image
         shell: bash
         run: |
-          cp firmware/build/rm_handheld_merged.bin dist/RM-Handheld-v0.1.9-web-flash.bin
-          sha256sum dist/RM-Handheld-v0.1.9-web-flash.bin > dist/RM-Handheld-v0.1.9-web-flash.bin.sha256
+          cp firmware/build/rm_handheld_merged.bin dist/RM-Handheld-v0.2.0-web-flash.bin
+          sha256sum dist/RM-Handheld-v0.2.0-web-flash.bin > dist/RM-Handheld-v0.2.0-web-flash.bin.sha256
 
       - uses: actions/upload-artifact@v4
         with:
@@ -103,16 +111,16 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: rm-handheld-v0.1.9-windows-flasher
+          name: rm-handheld-v0.2.0-windows-flasher
           path: |
-            dist/RM-Handheld-v0.1.9-windows-flasher.zip
-            dist/RM-Handheld-v0.1.9-windows-flasher.zip.sha256
+            dist/RM-Handheld-v0.2.0-windows-flasher.zip
+            dist/RM-Handheld-v0.2.0-windows-flasher.zip.sha256
           if-no-files-found: error
 
       - uses: actions/upload-artifact@v4
         with:
-          name: rm-handheld-v0.1.9-web-flash
+          name: rm-handheld-v0.2.0-web-flash
           path: |
-            dist/RM-Handheld-v0.1.9-web-flash.bin
-            dist/RM-Handheld-v0.1.9-web-flash.bin.sha256
+            dist/RM-Handheld-v0.2.0-web-flash.bin
+            dist/RM-Handheld-v0.2.0-web-flash.bin.sha256
           if-no-files-found: error
