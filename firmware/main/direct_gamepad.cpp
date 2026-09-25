@@ -21,6 +21,12 @@ constexpr int kStickDeadZone = 90;
 constexpr int kStickSpan = 1500;
 constexpr int kTriggerNoiseFloor = 45;
 constexpr int kInitialTriggerSpan = 1200;
+constexpr int kStickCenterMinimum = 800;
+constexpr int kStickCenterMaximum = 3000;
+constexpr int kTriggerRestLowMaximum = 300;
+constexpr int kTriggerRestHighMinimum = 3800;
+constexpr int kCalibrationNoiseMaximum = 120;
+constexpr int kAnalogLogThreshold = 250;
 
 struct ButtonBinding {
     gpio_num_t pin;
@@ -147,7 +153,11 @@ esp_err_t DirectGamepad::begin() {
     std::array<int, kAnalogCount> minimum{};
     std::array<int, kAnalogCount> maximum{};
     minimum.fill(kAdcMaximum);
-    for (int sample = 0; sample < 64; ++sample) {
+    // A full second catches floating inputs that can look stable for only a
+    // few milliseconds. Keep every raw channel available to RMH_ADC logging,
+    // but only electrically stable channels are allowed into BLE reports.
+    constexpr int kCalibrationSamples = 256;
+    for (int sample = 0; sample < kCalibrationSamples; ++sample) {
         for (std::size_t index = 0; index < kAnalogCount; ++index) {
             if (!analog_valid_[index]) continue;
             const int raw = read_raw(static_cast<AnalogInput>(index));
@@ -159,17 +169,29 @@ esp_err_t DirectGamepad::begin() {
             minimum[index] = std::min(minimum[index], raw);
             maximum[index] = std::max(maximum[index], raw);
         }
-        vTaskDelay(pdMS_TO_TICKS(2));
+        vTaskDelay(pdMS_TO_TICKS(4));
     }
     for (std::size_t index = 0; index < kAnalogCount; ++index) {
         if (!analog_valid_[index]) continue;
-        center_[index] = static_cast<int>(totals[index] / 64);
+        center_[index] = static_cast<int>(totals[index] / kCalibrationSamples);
         filtered_[index] = center_[index];
         trigger_peak_[index] = kInitialTriggerSpan;
-        if (center_[index] < 100 || center_[index] > kAdcMaximum - 100 ||
-            maximum[index] - minimum[index] > 250) {
-            ESP_LOGW(kTag, "Analog input %u looks noisy/extreme; scan remains enabled",
-                     static_cast<unsigned>(index));
+        const int noise_span = maximum[index] - minimum[index];
+        const bool stable = noise_span <= kCalibrationNoiseMaximum;
+        const bool trigger = index >= index_of(AnalogInput::LeftTrigger);
+        const bool sensible_rest = trigger
+            ? (center_[index] <= kTriggerRestLowMaximum ||
+               center_[index] >= kTriggerRestHighMinimum)
+            : (center_[index] >= kStickCenterMinimum &&
+               center_[index] <= kStickCenterMaximum);
+        analog_valid_[index] = stable && sensible_rest;
+        std::printf("RMH_ADC_STATUS input=%u center=%d span=%d BLE=%s\n",
+                    static_cast<unsigned>(index), center_[index], noise_span,
+                    analog_valid_[index] ? "ENABLED" : "BLOCKED");
+        if (!analog_valid_[index]) {
+            ESP_LOGW(kTag,
+                     "Analog input %u blocked from BLE (center=%d span=%d); raw scan remains active",
+                     static_cast<unsigned>(index), center_[index], noise_span);
         }
     }
 
@@ -178,6 +200,7 @@ esp_err_t DirectGamepad::begin() {
              "Direct controls ready: Menu=GPIO43/TX Home=GPIO48; release controls at boot");
     std::printf("RMH_SCAN READY - press one physical control at a time\n");
     std::printf("RMH_SCAN DIGITAL lines show the real GPIO, not the guessed button name\n");
+    std::printf("RMH_SCAN ORDER A B X Y LB RB LT RT L3 R3 UP DOWN LEFT RIGHT VIEW MENU HOME\n");
     std::fflush(stdout);
     return ESP_OK;
 }
@@ -250,8 +273,11 @@ void DirectGamepad::log_digital_changes() {
     bool wrote = false;
     for (std::size_t index = 0; index < kDigitalPins.size(); ++index) {
         const bool down = pressed(kDigitalPins[index]);
-        if (!digital_snapshot_ready_ || down != last_digital_[index]) {
-            std::printf("RMH_GPIO GPIO%d %s\n",
+        if (digital_snapshot_ready_ && down != last_digital_[index]) {
+            static std::uint32_t event_number = 0;
+            ++event_number;
+            std::printf("RMH_EVENT %lu GPIO%d %s\n",
+                        static_cast<unsigned long>(event_number),
                         static_cast<int>(kDigitalPins[index]),
                         down ? "PRESSED" : "RELEASED");
             wrote = true;
@@ -267,7 +293,11 @@ void DirectGamepad::log_analog_changes() {
     // enough to be useful for discovering stick/trigger wiring.
     bool changed = !analog_snapshot_ready_;
     for (std::size_t index = 0; index < kAnalogCount; ++index) {
-        if (std::abs(latest_raw_[index] - last_logged_raw_[index]) >= 100) {
+        // Read even channels blocked from BLE so the terminal remains a useful
+        // wiring probe without allowing floating voltages to move the gamepad.
+        latest_raw_[index] = read_raw(static_cast<AnalogInput>(index));
+        if (std::abs(latest_raw_[index] - last_logged_raw_[index]) >=
+            kAnalogLogThreshold) {
             changed = true;
         }
     }
