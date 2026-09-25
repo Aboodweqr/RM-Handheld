@@ -74,7 +74,7 @@ jobs:
           grep -q 'direct_gamepad.cpp' firmware/main/CMakeLists.txt
           grep -q 'kButtonMenu = GPIO_NUM_43' firmware/main/board_config.hpp
           grep -q 'kButtonHome = GPIO_NUM_48' firmware/main/board_config.hpp
-          grep -q 'RMH_GPIO GPIO' firmware/main/direct_gamepad.cpp
+          grep -q 'RMH_EVENT ' firmware/main/direct_gamepad.cpp
           grep -q 'RMH_ADC GPIO1=' firmware/main/direct_gamepad.cpp
           grep -q 'RMH_ADC_STATUS' firmware/main/direct_gamepad.cpp
           grep -q 'kCalibrationNoiseMaximum' firmware/main/direct_gamepad.cpp
