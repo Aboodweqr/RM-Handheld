@@ -57,7 +57,7 @@ jobs:
           target: esp32s3
           path: firmware
           command: >-
-            idf.py -D PROJECT_VER=v0.2.3-rb-gpio13 build &&
+            idf.py -D PROJECT_VER=v0.2.4-screen180-xy-scan build &&
             cd build &&
             esptool.py --chip esp32s3 merge_bin -o rm_handheld_merged.bin @flash_args
 
@@ -69,12 +69,17 @@ jobs:
           grep -q '^CONFIG_LOG_TAG_LEVEL_IMPL_NONE=y' firmware/sdkconfig
           grep -q '^CONFIG_ESP_MAIN_TASK_STACK_SIZE=12288' firmware/sdkconfig
           grep -q '\.swap_xy = true' firmware/main/dashboard_ui.cpp
+          grep -q 'esp_lcd_panel_mirror(panel, true, false)' firmware/main/dashboard_ui.cpp
+          grep -q '\\.mirror_x = true' firmware/main/dashboard_ui.cpp
+          grep -q '\\.mirror_y = false' firmware/main/dashboard_ui.cpp
           grep -q 'index < 8' firmware/main/dashboard_ui.cpp
           grep -q '\.swap_bytes = true' firmware/main/dashboard_ui.cpp
           grep -q 'direct_gamepad.cpp' firmware/main/CMakeLists.txt
           grep -q 'kButtonMenu = GPIO_NUM_43' firmware/main/board_config.hpp
           grep -q 'kButtonHome = GPIO_NUM_48' firmware/main/board_config.hpp
           grep -q 'kButtonRightBumper = GPIO_NUM_13' firmware/main/board_config.hpp
+          grep -q 'kButtonX = GPIO_NUM_40' firmware/main/board_config.hpp
+          grep -q 'kButtonY = GPIO_NUM_39' firmware/main/board_config.hpp
           grep -q 'RMH_EVENT ' firmware/main/direct_gamepad.cpp
           grep -q 'RMH_ADC GPIO1=' firmware/main/direct_gamepad.cpp
           grep -q 'RMH_ADC_STATUS' firmware/main/direct_gamepad.cpp
@@ -85,20 +90,20 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          package="dist/RM-Handheld-v0.2.3-windows-flasher"
+          package="dist/RM-Handheld-v0.2.4-windows-flasher"
           mkdir -p "$package/prebuilt"
           cp tools/windows-flasher/flash.bat "$package/"
           cp tools/windows-flasher/flash.ps1 "$package/"
           cp tools/windows-flasher/README.txt "$package/"
-          cp firmware/build/rm_handheld_merged.bin "$package/prebuilt/rm_handheld_v0.2.3_merged.bin"
-          (cd dist && zip -q -r RM-Handheld-v0.2.3-windows-flasher.zip RM-Handheld-v0.2.3-windows-flasher)
-          sha256sum dist/RM-Handheld-v0.2.3-windows-flasher.zip > dist/RM-Handheld-v0.2.3-windows-flasher.zip.sha256
+          cp firmware/build/rm_handheld_merged.bin "$package/prebuilt/rm_handheld_v0.2.4_merged.bin"
+          (cd dist && zip -q -r RM-Handheld-v0.2.4-windows-flasher.zip RM-Handheld-v0.2.4-windows-flasher)
+          sha256sum dist/RM-Handheld-v0.2.4-windows-flasher.zip > dist/RM-Handheld-v0.2.4-windows-flasher.zip.sha256
 
       - name: Package Spacehuhn web-flash image
         shell: bash
         run: |
-          cp firmware/build/rm_handheld_merged.bin dist/RM-Handheld-v0.2.3-web-flash.bin
-          sha256sum dist/RM-Handheld-v0.2.3-web-flash.bin > dist/RM-Handheld-v0.2.3-web-flash.bin.sha256
+          cp firmware/build/rm_handheld_merged.bin dist/RM-Handheld-v0.2.4-web-flash.bin
+          sha256sum dist/RM-Handheld-v0.2.4-web-flash.bin > dist/RM-Handheld-v0.2.4-web-flash.bin.sha256
 
       - uses: actions/upload-artifact@v4
         with:
@@ -116,16 +121,16 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: rm-handheld-v0.2.3-windows-flasher
+          name: rm-handheld-v0.2.4-windows-flasher
           path: |
-            dist/RM-Handheld-v0.2.3-windows-flasher.zip
-            dist/RM-Handheld-v0.2.3-windows-flasher.zip.sha256
+            dist/RM-Handheld-v0.2.4-windows-flasher.zip
+            dist/RM-Handheld-v0.2.4-windows-flasher.zip.sha256
           if-no-files-found: error
 
       - uses: actions/upload-artifact@v4
         with:
-          name: rm-handheld-v0.2.3-web-flash
+          name: rm-handheld-v0.2.4-web-flash
           path: |
-            dist/RM-Handheld-v0.2.3-web-flash.bin
-            dist/RM-Handheld-v0.2.3-web-flash.bin.sha256
+            dist/RM-Handheld-v0.2.4-web-flash.bin
+            dist/RM-Handheld-v0.2.4-web-flash.bin.sha256
           if-no-files-found: error
