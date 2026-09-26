@@ -23,8 +23,8 @@ constexpr int kDisplayHeight = 240;
 // rear pad and is intentionally assigned to Menu; GPIO48 is Home.
 constexpr gpio_num_t kButtonA = GPIO_NUM_21;
 constexpr gpio_num_t kButtonB = GPIO_NUM_38;
-constexpr gpio_num_t kButtonX = GPIO_NUM_39;
-constexpr gpio_num_t kButtonY = GPIO_NUM_40;
+constexpr gpio_num_t kButtonX = GPIO_NUM_40;
+constexpr gpio_num_t kButtonY = GPIO_NUM_39;  // Correct physical Y reporting as X.
 constexpr gpio_num_t kButtonLeftBumper = GPIO_NUM_41;
 constexpr gpio_num_t kButtonRightBumper = GPIO_NUM_13;  // GPIO42 pad damaged.
 constexpr gpio_num_t kButtonDpadUp = GPIO_NUM_47;
