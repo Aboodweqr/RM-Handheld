@@ -145,7 +145,7 @@ esp_err_t DashboardUi::start() {
     if (error != ESP_OK) return display_error("LCD inversion", error);
     error = esp_lcd_panel_swap_xy(panel, true);
     if (error != ESP_OK) return display_error("LCD rotation", error);
-    error = esp_lcd_panel_mirror(panel, false, true);
+    error = esp_lcd_panel_mirror(panel, true, false);
     if (error != ESP_OK) return display_error("LCD mirror", error);
     error = esp_lcd_panel_disp_on_off(panel, true);
     if (error != ESP_OK) return display_error("LCD on", error);
@@ -169,8 +169,8 @@ esp_err_t DashboardUi::start() {
         // rotation above. A mismatch resets the panel to 240x320 portrait.
         .rotation = {
             .swap_xy = true,
-            .mirror_x = false,
-            .mirror_y = true,
+            .mirror_x = true,
+            .mirror_y = false,
         },
         .rounder_cb = nullptr,
         .color_format = LV_COLOR_FORMAT_RGB565,
