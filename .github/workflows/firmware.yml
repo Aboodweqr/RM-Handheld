@@ -70,8 +70,8 @@ jobs:
           grep -q '^CONFIG_ESP_MAIN_TASK_STACK_SIZE=12288' firmware/sdkconfig
           grep -q '\.swap_xy = true' firmware/main/dashboard_ui.cpp
           grep -q 'esp_lcd_panel_mirror(panel, true, false)' firmware/main/dashboard_ui.cpp
-          grep -q '\\.mirror_x = true' firmware/main/dashboard_ui.cpp
-          grep -q '\\.mirror_y = false' firmware/main/dashboard_ui.cpp
+          grep -q '\.mirror_x = true' firmware/main/dashboard_ui.cpp
+          grep -q '\.mirror_y = false' firmware/main/dashboard_ui.cpp
           grep -q 'index < 8' firmware/main/dashboard_ui.cpp
           grep -q '\.swap_bytes = true' firmware/main/dashboard_ui.cpp
           grep -q 'direct_gamepad.cpp' firmware/main/CMakeLists.txt
