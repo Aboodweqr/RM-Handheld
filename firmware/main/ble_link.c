@@ -38,7 +38,9 @@ static const ble_uuid128_t telemetry_characteristic_uuid = BLE_UUID128_INIT(
     0x4c, 0x44, 0x48, 0x4d, 0x52, 0x44, 0x6b, 0x9a,
     0x6e, 0x4e, 0x15, 0x1b, 0x01, 0x00, 0x51, 0x7f);
 
-// 16 buttons, hat, four signed axes, and two 10-bit triggers.
+// Android-oriented Generic HID layout, based on the axis guidance from
+// lemmingDev/ESP32-BLE-Gamepad: X/Y are the left stick, Z/Rx are the right
+// stick, and Brake/Accelerator are the analog L2/R2 controls.
 static const uint8_t gamepad_report_map[] = {
     0x05, 0x01,       // Usage Page (Generic Desktop)
     0x09, 0x05,       // Usage (Game Pad)
@@ -66,17 +68,18 @@ static const uint8_t gamepad_report_map[] = {
     0x75, 0x04,       //   Report Size (4)
     0x95, 0x01,       //   Report Count (1)
     0x81, 0x03,       //   Input (Constant)
-    0x09, 0x30,       //   Usage (X)
-    0x09, 0x31,       //   Usage (Y)
-    0x09, 0x33,       //   Usage (Rx)
-    0x09, 0x34,       //   Usage (Ry)
+    0x09, 0x30,       //   Usage (X): left stick X
+    0x09, 0x31,       //   Usage (Y): left stick Y
+    0x09, 0x32,       //   Usage (Z): right stick X on Android
+    0x09, 0x33,       //   Usage (Rx): right stick Y on Android
     0x16, 0x01, 0x80, //   Logical Minimum (-32767)
     0x26, 0xFF, 0x7F, //   Logical Maximum (32767)
     0x75, 0x10,       //   Report Size (16)
     0x95, 0x04,       //   Report Count (4)
     0x81, 0x02,       //   Input (Data, Variable, Absolute)
-    0x09, 0x32,       //   Usage (Z)
-    0x09, 0x35,       //   Usage (Rz)
+    0x05, 0x02,       //   Usage Page (Simulation Controls)
+    0x09, 0xC5,       //   Usage (Brake): left trigger
+    0x09, 0xC4,       //   Usage (Accelerator): right trigger
     0x15, 0x00,       //   Logical Minimum (0)
     0x26, 0xFF, 0x03, //   Logical Maximum (1023)
     0x75, 0x10,       //   Report Size (16)
