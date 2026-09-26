@@ -34,9 +34,43 @@ void receive_telemetry(const std::uint8_t* data, std::size_t length,
     if (!valid) ESP_LOGW(kTag, "Rejected telemetry packet (length or CRC)");
 }
 
+constexpr std::uint16_t hid_button(std::uint8_t one_based_usage) {
+    return static_cast<std::uint16_t>(1U << (one_based_usage - 1U));
+}
+
+std::uint16_t make_android_buttons(const rmh::GamepadState& state) {
+    std::uint16_t buttons = 0;
+    const auto map = [&](rmh::GamepadButton source,
+                         std::uint8_t hid_usage) {
+        if (state.pressed(source)) buttons |= hid_button(hid_usage);
+    };
+
+    // Android's generic HID gamepad map has C and Z placeholders at usages
+    // 3 and 6. Sending our controls consecutively made X disappear, Y report
+    // as X, LB report as Y, and Menu report as RB.
+    map(rmh::GamepadButton::A, 1);
+    map(rmh::GamepadButton::B, 2);
+    map(rmh::GamepadButton::X, 4);
+    map(rmh::GamepadButton::Y, 5);
+    map(rmh::GamepadButton::LeftBumper, 7);
+    map(rmh::GamepadButton::RightBumper, 8);
+    map(rmh::GamepadButton::View, 11);
+    map(rmh::GamepadButton::Menu, 12);
+    map(rmh::GamepadButton::Home, 13);
+    map(rmh::GamepadButton::LeftStick, 14);
+    map(rmh::GamepadButton::RightStick, 15);
+
+    // Android also expects digital L2/R2 buttons in slots 9/10 even when the
+    // analog Brake/Accelerator axes are present.
+    constexpr std::uint16_t kTriggerButtonThreshold = 96;
+    if (state.left_trigger > kTriggerButtonThreshold) buttons |= hid_button(9);
+    if (state.right_trigger > kTriggerButtonThreshold) buttons |= hid_button(10);
+    return buttons;
+}
+
 rmh_ble_gamepad_report_t make_ble_report(const rmh::GamepadState& state) {
     return {
-        .buttons = static_cast<std::uint16_t>(state.buttons & 0xFFFFU),
+        .buttons = make_android_buttons(state),
         .hat = state.hat,
         .left_x = state.left_x,
         .left_y = state.left_y,
