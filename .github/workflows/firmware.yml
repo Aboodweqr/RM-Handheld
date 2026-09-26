@@ -15,6 +15,10 @@ on:
       - ".github/workflows/firmware.yml"
   workflow_dispatch:
 
+concurrency:
+  group: firmware-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -52,20 +56,63 @@ jobs:
           esp_idf_version: v5.5.5
           target: esp32s3
           path: firmware
-          command: idf.py build && cd build && esptool.py --chip esp32s3 merge_bin -o rm_handheld_merged.bin @flash_args
+          command: >-
+            idf.py -D PROJECT_VER=v0.2.5-android-hid build &&
+            cd build &&
+            esptool.py --chip esp32s3 merge_bin -o rm_handheld_merged.bin @flash_args
+
+      - name: Verify crash-fix configuration
+        shell: bash
+        run: |
+          grep -E '^(# )?CONFIG_(BT_ENABLED|BT_NIMBLE_ENABLED|ESP_COEX_SW_COEXIST_ENABLE|SW_COEXIST_ENABLE|LOG_DYNAMIC_LEVEL_CONTROL|LOG_TAG_LEVEL_IMPL_)' firmware/sdkconfig || true
+          grep -q '^# CONFIG_LOG_DYNAMIC_LEVEL_CONTROL is not set' firmware/sdkconfig
+          grep -q '^CONFIG_LOG_TAG_LEVEL_IMPL_NONE=y' firmware/sdkconfig
+          grep -q '^CONFIG_ESP_MAIN_TASK_STACK_SIZE=12288' firmware/sdkconfig
+          grep -q '\.swap_xy = true' firmware/main/dashboard_ui.cpp
+          grep -q 'esp_lcd_panel_mirror(panel, true, false)' firmware/main/dashboard_ui.cpp
+          grep -q '\.mirror_x = true' firmware/main/dashboard_ui.cpp
+          grep -q '\.mirror_y = false' firmware/main/dashboard_ui.cpp
+          grep -q 'index < 8' firmware/main/dashboard_ui.cpp
+          grep -q '\.swap_bytes = true' firmware/main/dashboard_ui.cpp
+          grep -q 'direct_gamepad.cpp' firmware/main/CMakeLists.txt
+          grep -q 'kButtonMenu = GPIO_NUM_43' firmware/main/board_config.hpp
+          grep -q 'kButtonHome = GPIO_NUM_48' firmware/main/board_config.hpp
+          grep -q 'kButtonRightBumper = GPIO_NUM_13' firmware/main/board_config.hpp
+          grep -q 'kButtonX = GPIO_NUM_40' firmware/main/board_config.hpp
+          grep -q 'kButtonY = GPIO_NUM_39' firmware/main/board_config.hpp
+          grep -q 'make_android_buttons' firmware/main/main.cpp
+          grep -q 'GamepadButton::X, 4' firmware/main/main.cpp
+          grep -q 'GamepadButton::Y, 5' firmware/main/main.cpp
+          grep -q 'GamepadButton::LeftBumper, 7' firmware/main/main.cpp
+          grep -q 'GamepadButton::RightBumper, 8' firmware/main/main.cpp
+          grep -q 'Usage (Z): right stick X on Android' firmware/main/ble_link.c
+          grep -q 'Usage Page (Simulation Controls)' firmware/main/ble_link.c
+          grep -q 'Usage (Brake): left trigger' firmware/main/ble_link.c
+          grep -q 'Usage (Accelerator): right trigger' firmware/main/ble_link.c
+          grep -q 'RMH_EVENT ' firmware/main/direct_gamepad.cpp
+          grep -q 'RMH_ADC GPIO1=' firmware/main/direct_gamepad.cpp
+          grep -q 'RMH_ADC_STATUS' firmware/main/direct_gamepad.cpp
+          grep -q 'kCalibrationNoiseMaximum' firmware/main/direct_gamepad.cpp
+          ! grep -q '"usb_gamepad.cpp"' firmware/main/CMakeLists.txt
 
       - name: Package fixed Windows flasher
         shell: bash
         run: |
           set -euo pipefail
-          package="dist/RM-Handheld-v0.1.5-fixed-windows-flasher"
+          package="dist/RM-Handheld-v0.2.5-windows-flasher"
           mkdir -p "$package/prebuilt"
           cp tools/windows-flasher/flash.bat "$package/"
           cp tools/windows-flasher/flash.ps1 "$package/"
           cp tools/windows-flasher/README.txt "$package/"
-          cp firmware/build/rm_handheld_merged.bin "$package/prebuilt/rm_handheld_v0.1.5_merged.bin"
-          (cd dist && zip -q -r RM-Handheld-v0.1.5-fixed-windows-flasher.zip RM-Handheld-v0.1.5-fixed-windows-flasher)
-          sha256sum dist/RM-Handheld-v0.1.5-fixed-windows-flasher.zip > dist/RM-Handheld-v0.1.5-fixed-windows-flasher.zip.sha256
+          cp firmware/build/rm_handheld_merged.bin "$package/prebuilt/rm_handheld_v0.2.5_merged.bin"
+          (cd dist && zip -q -r RM-Handheld-v0.2.5-windows-flasher.zip RM-Handheld-v0.2.5-windows-flasher)
+          sha256sum dist/RM-Handheld-v0.2.5-windows-flasher.zip > dist/RM-Handheld-v0.2.5-windows-flasher.zip.sha256
+
+      - name: Package Spacehuhn web-flash image
+        shell: bash
+        run: |
+          cp firmware/build/rm_handheld_merged.bin dist/RM-Handheld-v0.2.5-web-flash.bin
+          sha256sum dist/RM-Handheld-v0.2.5-web-flash.bin > dist/RM-Handheld-v0.2.5-web-flash.bin.sha256
 
       - uses: actions/upload-artifact@v4
         with:
@@ -76,12 +123,23 @@ jobs:
             firmware/build/bootloader/bootloader.bin
             firmware/build/partition_table/partition-table.bin
             firmware/build/flash_args
+            firmware/build/rm_handheld.elf
+            firmware/build/rm_handheld.map
+            firmware/sdkconfig
           if-no-files-found: error
 
       - uses: actions/upload-artifact@v4
         with:
-          name: rm-handheld-v0.1.5-fixed-windows-flasher
+          name: rm-handheld-v0.2.5-windows-flasher
           path: |
-            dist/RM-Handheld-v0.1.5-fixed-windows-flasher.zip
-            dist/RM-Handheld-v0.1.5-fixed-windows-flasher.zip.sha256
+            dist/RM-Handheld-v0.2.5-windows-flasher.zip
+            dist/RM-Handheld-v0.2.5-windows-flasher.zip.sha256
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rm-handheld-v0.2.5-web-flash
+          path: |
+            dist/RM-Handheld-v0.2.5-web-flash.bin
+            dist/RM-Handheld-v0.2.5-web-flash.bin.sha256
           if-no-files-found: error
