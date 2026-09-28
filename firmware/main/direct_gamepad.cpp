@@ -17,15 +17,16 @@ namespace {
 
 constexpr char kTag[] = "rmh_direct_pad";
 constexpr int kAdcMaximum = 4095;
-constexpr int kStickDeadZone = 90;
-constexpr int kStickSpan = 1500;
+constexpr int kStickDeadZone = 70;
+constexpr int kStickMinimumSpan = 320;
 constexpr int kTriggerNoiseFloor = 45;
-constexpr int kInitialTriggerSpan = 1200;
-constexpr int kStickCenterMinimum = 800;
-constexpr int kStickCenterMaximum = 3000;
-constexpr int kTriggerRestLowMaximum = 300;
-constexpr int kTriggerRestHighMinimum = 3800;
-constexpr int kCalibrationNoiseMaximum = 120;
+constexpr int kInitialTriggerSpan = 900;
+constexpr int kAnalogRailMargin = 64;
+constexpr int kTriggerRestLowMaximum = 900;
+constexpr int kTriggerRestHighMinimum = 3000;
+// Hall sticks on the X5 Lite do not necessarily rest near ADC mid-scale.
+// Reject channels only when they are on a rail or visibly unstable at boot.
+constexpr int kCalibrationNoiseMaximum = 240;
 constexpr int kAnalogLogThreshold = 250;
 
 struct ButtonBinding {
@@ -64,6 +65,17 @@ constexpr std::array<gpio_num_t, 15> kDigitalPins{{
     board::kButtonMenu,
     board::kButtonHome,
 }};
+
+constexpr std::array<const char*, 15> kDigitalNames{{
+    "A", "B", "X", "Y", "LB", "RB", "DPAD_UP", "DPAD_DOWN",
+    "DPAD_LEFT", "DPAD_RIGHT", "L3", "R3", "VIEW", "MENU", "HOME",
+}};
+
+constexpr std::array<const char*, 6> kAnalogNames{{
+    "LX", "LY", "RX", "RY", "LT", "RT",
+}};
+
+constexpr std::array<int, 6> kAnalogGpios{{1, 14, 15, 16, 17, 18}};
 
 bool pressed(gpio_num_t pin) {
     return gpio_get_level(pin) == 0;
@@ -182,12 +194,13 @@ esp_err_t DirectGamepad::begin() {
         const bool sensible_rest = trigger
             ? (center_[index] <= kTriggerRestLowMaximum ||
                center_[index] >= kTriggerRestHighMinimum)
-            : (center_[index] >= kStickCenterMinimum &&
-               center_[index] <= kStickCenterMaximum);
+            : (center_[index] > kAnalogRailMargin &&
+               center_[index] < kAdcMaximum - kAnalogRailMargin);
         analog_valid_[index] = stable && sensible_rest;
-        std::printf("RMH_ADC_STATUS input=%u center=%d span=%d BLE=%s\n",
-                    static_cast<unsigned>(index), center_[index], noise_span,
-                    analog_valid_[index] ? "ENABLED" : "BLOCKED");
+        std::printf(
+            "RMH_ADC_STATUS %s GPIO%d center=%d noise=%d BLE=%s\n",
+            kAnalogNames[index], kAnalogGpios[index], center_[index],
+            noise_span, analog_valid_[index] ? "ENABLED" : "BLOCKED");
         if (!analog_valid_[index]) {
             ESP_LOGW(kTag,
                      "Analog input %u blocked from BLE (center=%d span=%d); raw scan remains active",
@@ -199,7 +212,7 @@ esp_err_t DirectGamepad::begin() {
     ESP_LOGI(kTag,
              "Direct controls ready: Menu=GPIO43/TX Home=GPIO48; release controls at boot");
     std::printf("RMH_SCAN READY - press one physical control at a time\n");
-    std::printf("RMH_SCAN DIGITAL lines show the real GPIO, not the guessed button name\n");
+    std::printf("RMH_SCAN DIGITAL lines show configured name and real GPIO\n");
     std::printf("RMH_SCAN ORDER A B X Y LB RB LT RT L3 R3 UP DOWN LEFT RIGHT VIEW MENU HOME\n");
     std::fflush(stdout);
     return ESP_OK;
@@ -245,7 +258,13 @@ std::int16_t DirectGamepad::read_stick(AnalogInput input, bool invert) {
     int delta = filtered_[index] - center_[index];
     if (std::abs(delta) <= kStickDeadZone) return 0;
     delta += delta < 0 ? kStickDeadZone : -kStickDeadZone;
-    int value = delta * 32767 / (kStickSpan - kStickDeadZone);
+    // Scale each side independently. This supports the X5 Lite Hall outputs
+    // seen around 3150-3500 at rest instead of assuming a 2048 centre.
+    const int available = delta < 0
+        ? center_[index] - kStickDeadZone
+        : kAdcMaximum - center_[index] - kStickDeadZone;
+    const int span = std::max(available, kStickMinimumSpan);
+    int value = delta * 32767 / span;
     value = std::clamp(value, -32767, 32767);
     if (invert) value = -value;
     return static_cast<std::int16_t>(value);
@@ -276,8 +295,9 @@ void DirectGamepad::log_digital_changes() {
         if (digital_snapshot_ready_ && down != last_digital_[index]) {
             static std::uint32_t event_number = 0;
             ++event_number;
-            std::printf("RMH_EVENT %lu GPIO%d %s\n",
+            std::printf("RMH_EVENT %lu %-10s GPIO%d %s\n",
                         static_cast<unsigned long>(event_number),
+                        kDigitalNames[index],
                         static_cast<int>(kDigitalPins[index]),
                         down ? "PRESSED" : "RELEASED");
             wrote = true;
