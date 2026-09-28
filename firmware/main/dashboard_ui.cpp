@@ -211,7 +211,7 @@ void DashboardUi::build_shell() {
     lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, LV_PART_MAIN);
 
     auto* brand = lv_label_create(screen);
-    lv_label_set_text(brand, "RM");
+    lv_label_set_text(brand, "RM26");
     lv_obj_set_style_text_font(brand, &lv_font_montserrat_18, LV_PART_MAIN);
     label_color(brand, kAccent);
     lv_obj_set_pos(brand, 8, 5);
@@ -220,7 +220,7 @@ void DashboardUi::build_shell() {
     lv_label_set_text(page_label_, "OVERVIEW");
     lv_obj_set_style_text_font(page_label_, &lv_font_montserrat_12, LV_PART_MAIN);
     label_color(page_label_, kText);
-    lv_obj_set_pos(page_label_, 42, 9);
+    lv_obj_set_pos(page_label_, 58, 9);
 
     status_label_ = lv_label_create(screen);
     lv_label_set_text(status_label_, "PHONE --  PAD --  BLE --");
