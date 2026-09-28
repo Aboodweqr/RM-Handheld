@@ -1,8 +1,8 @@
-RM HANDHELD v0.1.5 - FIXED WINDOWS FLASHER
+RM HANDHELD v0.2.6 - FIXED WINDOWS FLASHER
 ================================================
 
 This package fixes the broken/truncated esptool.exe in the earlier ZIP.
-It contains the real compiled v0.1.5 ESP32-S3 firmware.
+It contains the real compiled v0.2.6 ESP32-S3 firmware.
 
 WHAT YOU NEED
 - Windows 10 or 11
@@ -28,8 +28,7 @@ IF CONNECTING FAILS
 - Run flash.bat again.
 
 EXPECTED SCREEN
-- Green and magenta test colors for about one second.
-- Then the RM Handheld dashboard.
+- The RM Handheld dashboard appears with RM26 in the header.
 
 If the TFT backlight is on but no green/magenta test appears after a confirmed
 successful flash, the next check is the TFT wiring/pin mapping.
