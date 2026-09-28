@@ -16,7 +16,7 @@ root.
 
 ## Current milestone
 
-Version **0.2.0 direct GPIO** replaces the old USB-host input path. The
+Version **0.2.6 direct GPIO** replaces the old USB-host input path. The
 ESP32-S3 now reads the controller buttons and analog controls directly, then
 forwards them to Android as a BLE HID gamepad. The TFT remains 320×240
 landscape with the crisp RGB byte-order fix.
@@ -33,6 +33,18 @@ The phone telemetry limits remain the same:
 | CPU/GPU clocks, usage, temperatures | Vendor/kernel dependent | `N/A` card |
 | Controller battery | GameSir X5 Lite is wired and has no battery | `WIRED` |
 | ESP battery | Hidden until a MAX17048 is added | `NO GAUGE` |
+
+### v0.2.6 controller fixes
+
+- Restores the measured physical face-button wiring: X=GPIO39 and Y=GPIO40.
+- Keeps Android's standard generic-HID gaps (button usages 3 and 6), so X/Y,
+  bumpers, triggers, View/Menu, and stick clicks report with the expected names.
+- Accepts offset Hall-stick centers instead of requiring a midpoint near 2048,
+  and scales each direction independently.
+- Serial diagnostics now print both the configured control name and real GPIO,
+  for example `RMH_EVENT ... X GPIO39 PRESSED`.
+- The TFT says **RM26** and BLE advertises as **RM Handheld 026**, making it
+  obvious that the updated firmware is running.
 
 ## Dashboard controls
 
@@ -66,13 +78,14 @@ The TFT is a 3.3 V device. `SDA` on this board means SPI data/MOSI, not I²C SDA
 ## Direct controller pin map
 
 The firmware expects active-low digital inputs and the following analog
-signals. Menu is the **TX-labelled GPIO43** pad; Home is **GPIO48**.
+signals. Menu is the **TX-labelled GPIO43** pad; Home is **GPIO48**. GPIO42
+was replaced by GPIO13 for RB after the GPIO42 copper pad was damaged.
 
 | Control | GPIO | Control | GPIO |
 | --- | ---: | --- | ---: |
 | A | 21 | B | 38 |
 | X | 39 | Y | 40 |
-| LB | 41 | RB | 42 |
+| LB | 41 | RB | 13 |
 | D-pad Up | 47 | D-pad Down | 44 / RX |
 | D-pad Left | 2 | D-pad Right | 4 |
 | L3 | 5 | R3 | 6 |
@@ -130,7 +143,7 @@ produce the merged image. Copying the source ZIP or running the old v0.1.4
 
 1. Flash the merged web-flash BIN at address `0x0`, then press RESET.
 2. Do not touch the sticks or triggers during the first second.
-3. Pair `RM Handheld` in Android Bluetooth settings.
+3. Pair `RM Handheld 026` in Android Bluetooth settings.
 4. Open the APK and press **Connect** for phone telemetry.
 5. Test A/B/X/Y, D-pad, bumpers, Menu, Home, sticks, and triggers in an Android
    game-controller tester before opening a game.
@@ -144,7 +157,7 @@ received SPI data; startup colors followed by the dashboard do.
 ## Testing without optional hardware
 
 The TFT and MAX17048 are not required for BLE controller input. Leave the TFT
-unconnected if needed, flash the firmware, pair `RM Handheld`, and test the
+unconnected if needed, flash the firmware, pair `RM Handheld 026`, and test the
 direct controls first. The native USB connection can remain attached for serial
 diagnostics.
 
