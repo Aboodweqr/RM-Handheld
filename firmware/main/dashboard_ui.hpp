@@ -37,8 +37,8 @@ private:
     lv_obj_t* content_{nullptr};
     lv_obj_t* status_label_{nullptr};
     lv_obj_t* page_label_{nullptr};
-    std::array<lv_obj_t*, 6> value_labels_{};
-    std::array<lv_obj_t*, 6> subtitle_labels_{};
+    std::array<lv_obj_t*, 8> value_labels_{};
+    std::array<lv_obj_t*, 8> subtitle_labels_{};
     lv_obj_t* detail_value_{nullptr};
     lv_obj_t* detail_note_{nullptr};
     lv_obj_t* chart_{nullptr};

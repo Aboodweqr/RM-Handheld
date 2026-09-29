@@ -185,7 +185,29 @@ void dashboard_navigation() {
     assert(result.page == rmh::DashboardPage::Performance);
 
     input = {};
-    result = router.update(input, 22281);
+    router.update(input, 2290);
+    input.set(rmh::GamepadButton::B, true);
+    result = router.update(input, 2300);
+    assert(result.page == rmh::DashboardPage::Overview);
+
+    input = {};
+    router.update(input, 2310);
+    input.hat = 4;
+    result = router.update(input, 2320);
+    assert(result.selected_card == 6);
+    input.hat = 8;
+    router.update(input, 2330);
+    input.hat = 2;
+    result = router.update(input, 2340);
+    assert(result.selected_card == 7);
+    input.hat = 8;
+    router.update(input, 2350);
+    input.set(rmh::GamepadButton::A, true);
+    result = router.update(input, 2360);
+    assert(result.page == rmh::DashboardPage::Network);
+
+    input = {};
+    result = router.update(input, 22400);
     assert(!result.dashboard_active);
     assert(result.action == rmh::DashboardAction::Exited);
 }
