@@ -109,7 +109,7 @@ extern "C" void app_main(void) {
         vTaskDelay(pdMS_TO_TICKS(250));
     }
 
-    // Read the hard-wired controller before starting BLE. Sticks and triggers
+    // Read the hard-wired controller before starting BLE. Only the sticks
     // are calibrated at rest during this short startup step.
     rmh::DirectGamepad gamepad;
     error = gamepad.begin();

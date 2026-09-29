@@ -1,13 +1,13 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
-title RM Handheld v0.2.6 - Fixed Windows Flasher
+title RM Handheld v0.2.7 - Fixed Windows Flasher
 
 cd /d "%~dp0"
-set "RMH_BIN=%CD%\prebuilt\rm_handheld_v0.2.6_merged.bin"
+set "RMH_BIN=%CD%\prebuilt\rm_handheld_v0.2.7_merged.bin"
 set "RMH_SCRIPT=%CD%\flash.ps1"
 
 if not exist "%RMH_BIN%" (
-    echo ERROR: Missing prebuilt\rm_handheld_v0.2.6_merged.bin
+    echo ERROR: Missing prebuilt\rm_handheld_v0.2.7_merged.bin
     echo Extract the complete ZIP before running flash.bat.
     goto :failed
 )
@@ -19,7 +19,7 @@ if not exist "%RMH_SCRIPT%" (
 )
 
 echo.
-echo RM Handheld v0.2.6 fixed Windows flasher
+echo RM Handheld v0.2.7 fixed Windows flasher
 echo No Python, WSL, or ESP-IDF installation is required.
 echo On its first run it downloads the official Espressif flashing tool.
 echo Close Arduino Serial Monitor before flashing.
@@ -38,9 +38,9 @@ set "RMH_RESULT=%ERRORLEVEL%"
 if not "%RMH_RESULT%"=="0" goto :failed
 
 echo.
-echo SUCCESS: RM Handheld v0.2.6 was really flashed and verified.
+echo SUCCESS: RM Handheld v0.2.7 was really flashed and verified.
 echo Press RESET after flashing.
-echo The TFT header should start with RM26.
+echo The TFT header should start with RM27.
 pause
 exit /b 0
 

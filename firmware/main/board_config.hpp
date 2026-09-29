@@ -23,9 +23,8 @@ constexpr int kDisplayHeight = 240;
 // rear pad and is intentionally assigned to Menu; GPIO48 is Home.
 constexpr gpio_num_t kButtonA = GPIO_NUM_21;
 constexpr gpio_num_t kButtonB = GPIO_NUM_38;
-// The ordered GPIO scan showed the face-button wiring follows the original
-// X=39 / Y=40 assignment. Keeping these physical pins separate from Android's
-// HID button-number mapping prevents the physical Y button reporting as X.
+// Physical wiring expected by this firmware. The Android HID usage mapping
+// is separate from the GPIO assignments.
 constexpr gpio_num_t kButtonX = GPIO_NUM_39;
 constexpr gpio_num_t kButtonY = GPIO_NUM_40;
 constexpr gpio_num_t kButtonLeftBumper = GPIO_NUM_41;
@@ -45,7 +44,10 @@ constexpr gpio_num_t kLeftStickX = GPIO_NUM_1;   // ADC1 channel 0.
 constexpr gpio_num_t kLeftStickY = GPIO_NUM_14;  // ADC2 channel 3.
 constexpr gpio_num_t kRightStickX = GPIO_NUM_15; // ADC2 channel 4.
 constexpr gpio_num_t kRightStickY = GPIO_NUM_16; // ADC2 channel 5.
-constexpr gpio_num_t kLeftTrigger = GPIO_NUM_17; // ADC2 channel 6.
-constexpr gpio_num_t kRightTrigger = GPIO_NUM_18;// ADC2 channel 7.
+
+// User-confirmed digital trigger switches: signal to GPIO, return to common
+// GND. Internal pull-ups keep unpressed/open inputs high. Not ADC channels.
+constexpr gpio_num_t kLeftTrigger = GPIO_NUM_17;
+constexpr gpio_num_t kRightTrigger = GPIO_NUM_18;
 
 }  // namespace rmh::board

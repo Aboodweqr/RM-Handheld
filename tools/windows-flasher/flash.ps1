@@ -78,7 +78,7 @@ try {
         throw "esptool could not start (exit code $LASTEXITCODE)."
     }
 
-    Write-Host "Connecting to ESP32-S3 on $Port and flashing v0.2.6..." -ForegroundColor Cyan
+    Write-Host "Connecting to ESP32-S3 on $Port and flashing v0.2.7..." -ForegroundColor Cyan
     & $Esptool.FullName --chip esp32s3 --port $Port --baud 460800 --before default-reset --after hard-reset write-flash 0x0 $Firmware
     if ($LASTEXITCODE -ne 0) {
         throw "Flashing failed (esptool exit code $LASTEXITCODE)."

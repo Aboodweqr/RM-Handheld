@@ -336,7 +336,7 @@ static void advertise(void) {
     rc = ble_gap_adv_start(own_addr_type, NULL, BLE_HS_FOREVER,
                            &parameters, gap_event, NULL);
     if (rc != 0) ESP_LOGE(TAG, "Advertising failed: %d", rc);
-    else ESP_LOGI(TAG, "Advertising as RM Handheld 026 (HID + telemetry)");
+    else ESP_LOGI(TAG, "Advertising as RM Handheld 027 (HID + telemetry)");
 }
 
 static void on_sync(void) {
@@ -383,7 +383,7 @@ esp_err_t rmh_ble_start(rmh_telemetry_receive_cb_t callback, void *context) {
 
     ble_svc_gap_init();
     ble_svc_gatt_init();
-    int rc = ble_svc_gap_device_name_set("RM Handheld 026");
+    int rc = ble_svc_gap_device_name_set("RM Handheld 027");
     if (rc != 0) return ESP_FAIL;
     rc = ble_gatts_count_cfg(services);
     if (rc != 0) return ESP_FAIL;

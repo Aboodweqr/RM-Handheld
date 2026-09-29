@@ -25,21 +25,18 @@ private:
         LeftY,
         RightX,
         RightY,
-        LeftTrigger,
-        RightTrigger,
         Count,
     };
 
     static constexpr std::size_t kAnalogCount =
         static_cast<std::size_t>(AnalogInput::Count);
-    static constexpr std::size_t kDigitalCount = 15;
+    static constexpr std::size_t kDigitalCount = 17;
     static constexpr std::size_t index_of(AnalogInput input) {
         return static_cast<std::size_t>(input);
     }
 
     int read_raw(AnalogInput input) const;
     std::int16_t read_stick(AnalogInput input, bool invert);
-    std::uint16_t read_trigger(AnalogInput input);
     void log_digital_changes();
     void log_analog_changes();
 
@@ -47,7 +44,6 @@ private:
     adc_oneshot_unit_handle_t adc2_{nullptr};
     std::array<int, kAnalogCount> center_{};
     std::array<int, kAnalogCount> filtered_{};
-    std::array<int, kAnalogCount> trigger_peak_{};
     std::array<int, kAnalogCount> latest_raw_{};
     std::array<int, kAnalogCount> last_logged_raw_{};
     std::array<bool, kAnalogCount> analog_valid_{};

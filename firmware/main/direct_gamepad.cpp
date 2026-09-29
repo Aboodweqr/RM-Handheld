@@ -19,11 +19,7 @@ constexpr char kTag[] = "rmh_direct_pad";
 constexpr int kAdcMaximum = 4095;
 constexpr int kStickDeadZone = 70;
 constexpr int kStickMinimumSpan = 320;
-constexpr int kTriggerNoiseFloor = 45;
-constexpr int kInitialTriggerSpan = 900;
 constexpr int kAnalogRailMargin = 64;
-constexpr int kTriggerRestLowMaximum = 900;
-constexpr int kTriggerRestHighMinimum = 3000;
 // Hall sticks on the X5 Lite do not necessarily rest near ADC mid-scale.
 // Reject channels only when they are on a rail or visibly unstable at boot.
 constexpr int kCalibrationNoiseMaximum = 240;
@@ -48,7 +44,7 @@ constexpr std::array<ButtonBinding, 11> kButtons{{
     {board::kButtonHome, GamepadButton::Home},
 }};
 
-constexpr std::array<gpio_num_t, 15> kDigitalPins{{
+constexpr std::array<gpio_num_t, 17> kDigitalPins{{
     board::kButtonA,
     board::kButtonB,
     board::kButtonX,
@@ -64,18 +60,20 @@ constexpr std::array<gpio_num_t, 15> kDigitalPins{{
     board::kButtonView,
     board::kButtonMenu,
     board::kButtonHome,
+    board::kLeftTrigger,
+    board::kRightTrigger,
 }};
 
-constexpr std::array<const char*, 15> kDigitalNames{{
+constexpr std::array<const char*, 17> kDigitalNames{{
     "A", "B", "X", "Y", "LB", "RB", "DPAD_UP", "DPAD_DOWN",
-    "DPAD_LEFT", "DPAD_RIGHT", "L3", "R3", "VIEW", "MENU", "HOME",
+    "DPAD_LEFT", "DPAD_RIGHT", "L3", "R3", "VIEW", "MENU", "HOME", "LT", "RT",
 }};
 
-constexpr std::array<const char*, 6> kAnalogNames{{
-    "LX", "LY", "RX", "RY", "LT", "RT",
+constexpr std::array<const char*, 4> kAnalogNames{{
+    "LX", "LY", "RX", "RY",
 }};
 
-constexpr std::array<int, 6> kAnalogGpios{{1, 14, 15, 16, 17, 18}};
+constexpr std::array<int, 4> kAnalogGpios{{1, 14, 15, 16}};
 
 bool pressed(gpio_num_t pin) {
     return gpio_get_level(pin) == 0;
@@ -145,12 +143,10 @@ esp_err_t DirectGamepad::begin() {
         analog_valid_[index_of(AnalogInput::LeftX)] = true;
     }
     if (adc2_ != nullptr) {
-        const std::array<std::pair<AnalogInput, adc_channel_t>, 5> adc2_inputs{{
+        const std::array<std::pair<AnalogInput, adc_channel_t>, 3> adc2_inputs{{
             {AnalogInput::LeftY, ADC_CHANNEL_3},
             {AnalogInput::RightX, ADC_CHANNEL_4},
             {AnalogInput::RightY, ADC_CHANNEL_5},
-            {AnalogInput::LeftTrigger, ADC_CHANNEL_6},
-            {AnalogInput::RightTrigger, ADC_CHANNEL_7},
         }};
         for (const auto& [input, channel] : adc2_inputs) {
             if (adc_oneshot_config_channel(adc2_, channel, &channel_config) == ESP_OK) {
@@ -159,7 +155,7 @@ esp_err_t DirectGamepad::begin() {
         }
     }
 
-    // Average the resting values. Leave both sticks and triggers untouched for
+    // Average the resting values. Leave both sticks untouched for
     // this short period after RESET.
     std::array<std::int32_t, kAnalogCount> totals{};
     std::array<int, kAnalogCount> minimum{};
@@ -187,15 +183,10 @@ esp_err_t DirectGamepad::begin() {
         if (!analog_valid_[index]) continue;
         center_[index] = static_cast<int>(totals[index] / kCalibrationSamples);
         filtered_[index] = center_[index];
-        trigger_peak_[index] = kInitialTriggerSpan;
         const int noise_span = maximum[index] - minimum[index];
         const bool stable = noise_span <= kCalibrationNoiseMaximum;
-        const bool trigger = index >= index_of(AnalogInput::LeftTrigger);
-        const bool sensible_rest = trigger
-            ? (center_[index] <= kTriggerRestLowMaximum ||
-               center_[index] >= kTriggerRestHighMinimum)
-            : (center_[index] > kAnalogRailMargin &&
-               center_[index] < kAdcMaximum - kAnalogRailMargin);
+        const bool sensible_rest = center_[index] > kAnalogRailMargin &&
+            center_[index] < kAdcMaximum - kAnalogRailMargin;
         analog_valid_[index] = stable && sensible_rest;
         std::printf(
             "RMH_ADC_STATUS %s GPIO%d center=%d noise=%d BLE=%s\n",
@@ -211,6 +202,7 @@ esp_err_t DirectGamepad::begin() {
     ready_ = true;
     ESP_LOGI(kTag,
              "Direct controls ready: Menu=GPIO43/TX Home=GPIO48; release controls at boot");
+    std::printf("RMH_TRIGGERS DIGITAL active-low pull-up LT=GPIO17 RT=GPIO18\n");
     std::printf("RMH_SCAN READY - press one physical control at a time\n");
     std::printf("RMH_SCAN DIGITAL lines show configured name and real GPIO\n");
     std::printf("RMH_SCAN ORDER A B X Y LB RB LT RT L3 R3 UP DOWN LEFT RIGHT VIEW MENU HOME\n");
@@ -232,12 +224,6 @@ int DirectGamepad::read_raw(AnalogInput input) const {
             break;
         case AnalogInput::RightY:
             if (adc2_ != nullptr) (void)adc_oneshot_read(adc2_, ADC_CHANNEL_5, &raw);
-            break;
-        case AnalogInput::LeftTrigger:
-            if (adc2_ != nullptr) (void)adc_oneshot_read(adc2_, ADC_CHANNEL_6, &raw);
-            break;
-        case AnalogInput::RightTrigger:
-            if (adc2_ != nullptr) (void)adc_oneshot_read(adc2_, ADC_CHANNEL_7, &raw);
             break;
         case AnalogInput::Count:
             break;
@@ -270,24 +256,6 @@ std::int16_t DirectGamepad::read_stick(AnalogInput input, bool invert) {
     return static_cast<std::int16_t>(value);
 }
 
-std::uint16_t DirectGamepad::read_trigger(AnalogInput input) {
-    const auto index = index_of(input);
-    if (!analog_valid_[index]) {
-        latest_raw_[index] = -1;
-        return 0;
-    }
-    const int raw = read_raw(input);
-    latest_raw_[index] = raw;
-    if (raw < 0) return 0;
-    filtered_[index] = (filtered_[index] * 3 + raw) / 4;
-    int delta = std::abs(filtered_[index] - center_[index]);
-    if (delta <= kTriggerNoiseFloor) return 0;
-    delta -= kTriggerNoiseFloor;
-    trigger_peak_[index] = std::max(trigger_peak_[index], delta);
-    return static_cast<std::uint16_t>(
-        std::clamp(delta * 1023 / trigger_peak_[index], 0, 1023));
-}
-
 void DirectGamepad::log_digital_changes() {
     bool wrote = false;
     for (std::size_t index = 0; index < kDigitalPins.size(); ++index) {
@@ -310,7 +278,7 @@ void DirectGamepad::log_digital_changes() {
 
 void DirectGamepad::log_analog_changes() {
     // Called every 200 ms. Print a single compact line only if an ADC moved
-    // enough to be useful for discovering stick/trigger wiring.
+    // enough to be useful for discovering stick wiring.
     bool changed = !analog_snapshot_ready_;
     for (std::size_t index = 0; index < kAnalogCount; ++index) {
         // Read even channels blocked from BLE so the terminal remains a useful
@@ -322,9 +290,8 @@ void DirectGamepad::log_analog_changes() {
         }
     }
     if (!changed) return;
-    std::printf("RMH_ADC GPIO1=%d GPIO14=%d GPIO15=%d GPIO16=%d GPIO17=%d GPIO18=%d\n",
-                latest_raw_[0], latest_raw_[1], latest_raw_[2],
-                latest_raw_[3], latest_raw_[4], latest_raw_[5]);
+    std::printf("RMH_ADC GPIO1=%d GPIO14=%d GPIO15=%d GPIO16=%d\n",
+                latest_raw_[0], latest_raw_[1], latest_raw_[2], latest_raw_[3]);
     last_logged_raw_ = latest_raw_;
     analog_snapshot_ready_ = true;
     std::fflush(stdout);
@@ -342,8 +309,11 @@ GamepadState DirectGamepad::read() {
     state.left_y = read_stick(AnalogInput::LeftY, true);
     state.right_x = read_stick(AnalogInput::RightX, false);
     state.right_y = read_stick(AnalogInput::RightY, true);
-    state.left_trigger = read_trigger(AnalogInput::LeftTrigger);
-    state.right_trigger = read_trigger(AnalogInput::RightTrigger);
+    // These triggers are switches, not analog sensors. The same pull-ups as
+    // A/B/X/Y hold an open switch released; grounding it gives full travel.
+    // Keep the existing HID axes (0/1023) and Android L2/R2 button mapping.
+    state.left_trigger = pressed(board::kLeftTrigger) ? 1023 : 0;
+    state.right_trigger = pressed(board::kRightTrigger) ? 1023 : 0;
     if ((samples_ % 10U) == 0U) log_analog_changes();
     ++samples_;
     return state;

@@ -211,7 +211,7 @@ void DashboardUi::build_shell() {
     lv_obj_set_style_bg_opa(screen, LV_OPA_COVER, LV_PART_MAIN);
 
     auto* brand = lv_label_create(screen);
-    lv_label_set_text(brand, "RM26");
+    lv_label_set_text(brand, "RM27");
     lv_obj_set_style_text_font(brand, &lv_font_montserrat_18, LV_PART_MAIN);
     label_color(brand, kAccent);
     lv_obj_set_pos(brand, 8, 5);
